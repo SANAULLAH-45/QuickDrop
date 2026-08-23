@@ -1,7 +1,7 @@
 const roomService = require('./roomService');
 
 // =========================
-// MESSAGE RATE LIMIT
+// MESSAGE RATE LIMITING
 // =========================
 
 const MESSAGE_WINDOW_MS = 10 * 1000;
@@ -9,15 +9,20 @@ const MAX_MESSAGES_PER_WINDOW = 30;
 
 const messageCounters = new Map();
 
+
 function isMessageRateLimited(socketId) {
+
   const now = Date.now();
 
-  let counter = messageCounters.get(socketId);
+  let counter =
+    messageCounters.get(socketId);
 
   if (
     !counter ||
-    now - counter.windowStart > MESSAGE_WINDOW_MS
+    now - counter.windowStart >
+      MESSAGE_WINDOW_MS
   ) {
+
     counter = {
       count: 0,
       windowStart: now
@@ -31,12 +36,15 @@ function isMessageRateLimited(socketId) {
     counter
   );
 
-  return counter.count > MAX_MESSAGES_PER_WINDOW;
+  return (
+    counter.count >
+    MAX_MESSAGES_PER_WINDOW
+  );
 }
 
 
 // =========================
-// REGISTER SOCKET HANDLERS
+// SOCKET HANDLERS
 // =========================
 
 function registerSocketHandlers(io) {
@@ -86,6 +94,7 @@ function registerSocketHandlers(io) {
           room.code;
 
 
+        // Add user
         roomService.addUser(
           room,
           socket.id,
@@ -95,20 +104,17 @@ function registerSocketHandlers(io) {
         );
 
 
+        // Save name
         socket.chatName =
           (name || '')
             .toString()
             .trim()
             .slice(0, 30) ||
-          (role === 'creator'
-            ? 'You'
-            : 'Guest');
+          'Guest';
 
 
         const user =
-          room.users.get(
-            socket.id
-          );
+          room.users.get(socket.id);
 
         if (user) {
           user.name =
@@ -116,6 +122,7 @@ function registerSocketHandlers(io) {
         }
 
 
+        // Notify other user
         socket
           .to(room.code)
           .emit(
@@ -235,10 +242,12 @@ function registerSocketHandlers(io) {
           'Guest';
 
 
-        io.to(room.code).emit(
-          'message:receive',
-          message
-        );
+        io
+          .to(room.code)
+          .emit(
+            'message:receive',
+            message
+          );
 
 
         ack && ack({
@@ -387,41 +396,7 @@ function registerSocketHandlers(io) {
 
 
     // =========================
-    // WEBRTC ANSWER
-    // =========================
-
-    socket.on(
-      'call:answer',
-      ({ code, signal }) => {
-
-        const room =
-          roomService.getRoom(code);
-
-        if (
-          !room ||
-          !room.users.has(socket.id)
-        ) {
-          return;
-        }
-
-
-        socket
-          .to(room.code)
-          .emit(
-            'call:answer',
-            {
-              from:
-                socket.id,
-
-              signal
-            }
-          );
-      }
-    );
-
-
-    // =========================
-    // WEBRTC ICE CANDIDATE
+    // ICE CANDIDATE
     // =========================
 
     socket.on(
@@ -572,16 +547,12 @@ function handleLeave(
     );
 
 
-  // Stop typing for remaining user
-
   socket
     .to(room.code)
     .emit(
       'typing:stop'
     );
 
-
-  // End active call for remaining user
 
   socket
     .to(room.code)
@@ -590,6 +561,10 @@ function handleLeave(
     );
 }
 
+
+// =========================
+// EXPORT
+// =========================
 
 module.exports = {
   registerSocketHandlers
