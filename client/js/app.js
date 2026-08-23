@@ -16,15 +16,139 @@ const App = (() => {
   }
 
   async function initCreate() {
+  const textBtn = document.getElementById('textShareBtn');
+  const fileBtn = document.getElementById('fileShareBtn');
+
+  const textPanel = document.getElementById('textSharePanel');
+  const filePanel = document.getElementById('fileSharePanel');
+
+  const textInput = document.getElementById('shareTextInput');
+  const fileInput = document.getElementById('shareFileInput');
+
+  const sendTextBtn = document.getElementById('sendTextBtn');
+  const sendFileBtn = document.getElementById('sendFileBtn');
+
+  const selectedFileName = document.getElementById('selectedFileName');
+  const errorBox = document.getElementById('shareError');
+
+  if (!textBtn) return;
+
+  // Text mode
+  textBtn.addEventListener('click', () => {
+    textPanel.hidden = false;
+    filePanel.hidden = true;
+
+    textBtn.classList.add('btn-primary');
+    fileBtn.classList.remove('btn-primary');
+
+    textInput.focus();
+  });
+
+  // File mode
+  fileBtn.addEventListener('click', () => {
+    textPanel.hidden = true;
+    filePanel.hidden = false;
+
+    fileBtn.classList.add('btn-primary');
+    textBtn.classList.remove('btn-primary');
+  });
+
+  // File selected
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+
+    if (!file) {
+      selectedFileName.textContent = '';
+      sendFileBtn.disabled = true;
+      return;
+    }
+
+    selectedFileName.textContent =
+      `${file.name} (${formatFileSize(file.size)})`;
+
+    sendFileBtn.disabled = false;
+  });
+
+  // Send text
+  sendTextBtn.addEventListener('click', async () => {
+    const text = textInput.value.trim();
+
+    if (!text) {
+      showError('Please enter something to share.');
+      return;
+    }
+
+    await createShare('text', text);
+  });
+
+  // Send file
+  sendFileBtn.addEventListener('click', async () => {
+    const file = fileInput.files[0];
+
+    if (!file) {
+      showError('Please choose a file first.');
+      return;
+    }
+
+    await createShare('file', file);
+  });
+
+  function showError(message) {
+    errorBox.textContent = message;
+    errorBox.hidden = false;
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return `${bytes} B`;
+
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(1)} KB`;
+    }
+
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  async function createShare(type, data) {
+    errorBox.hidden = true;
+
+    sendTextBtn.disabled = true;
+    sendFileBtn.disabled = true;
+
     try {
-      const room = await Api.createRoom();
-      sessionStorage.setItem(`qd-creator-${room.code}`, '1');
-      Router.navigate(`/room/${room.code}`);
+      // IMPORTANT:
+      // Share/transfer is created ONLY after Send Now.
+      const transfer = await Api.createRoom();
+
+      const code = transfer.code;
+
+      sessionStorage.setItem(`qd-creator-${code}`, '1');
+
+      if (type === 'text') {
+        sessionStorage.setItem(
+          `qd-pending-text-${code}`,
+          data
+        );
+      }
+
+      if (type === 'file') {
+        sessionStorage.setItem(
+          `qd-pending-file-${code}`,
+          data.name
+        );
+      }
+
+      Router.navigate(`/room/${code}`);
+
     } catch (err) {
-      Toast.error(err.message || 'Could not create a room right now.');
-      Router.navigate('/');
+      showError(
+        err.message || 'Could not start the share.'
+      );
+
+      sendTextBtn.disabled = false;
+      sendFileBtn.disabled = false;
     }
   }
+}
 
   function initJoin() {
     const form = document.getElementById('joinForm');
