@@ -7,6 +7,7 @@ const RoomController = (() => {
 
   let code = null;
   let mySocketId = null;
+  let myName = 'You';
   let expiresAt = null;
   let countdownInterval = null;
 
@@ -67,6 +68,12 @@ const RoomController = (() => {
   async function init(roomCode) {
 
     code = Utils.normalizeCode(roomCode);
+
+    // Get current user's saved name
+    myName =
+      sessionStorage.getItem(
+        `qd-chat-name-${code}`
+      ) || 'You';
 
     cacheEls();
 
@@ -198,7 +205,6 @@ const RoomController = (() => {
     const joinUrl =
       `${window.location.origin}/#/room/${code}`;
 
-    // QRCode library loaded from index.html
     new QRCode(els.qrCode, {
       text: joinUrl,
       width: 148,
@@ -576,6 +582,8 @@ const RoomController = (() => {
 
       <div class="message-bubble">
 
+        <div class="message-name"></div>
+
         <div class="message-text"></div>
 
         <div class="message-meta">
@@ -600,16 +608,30 @@ const RoomController = (() => {
     `;
 
 
+    // Show sender name
+    const nameElement =
+      li.querySelector(
+        '.message-name'
+      );
+
+    nameElement.textContent =
+      message.senderName ||
+      (isMine
+        ? myName
+        : 'Your person');
+
+
+    // Show message
     const textElement =
       li.querySelector(
         '.message-text'
       );
 
-
     textElement.textContent =
       message.text;
 
 
+    // Copy button
     const copyButton =
       li.querySelector(
         '.copy-text-btn'
@@ -664,10 +686,6 @@ const RoomController = (() => {
           typingTimer
         );
 
-        // Typing event will be connected
-        // to Socket.IO when the server
-        // supports it.
-
         typingTimer =
           setTimeout(
             () => {},
@@ -709,6 +727,7 @@ const RoomController = (() => {
 
     code = null;
     mySocketId = null;
+    myName = 'You';
     expiresAt = null;
   }
 
