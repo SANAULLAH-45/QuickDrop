@@ -71,7 +71,20 @@ const RoomController = (() => {
       return;
     }
 
-    bindSocketEvents();
+        bindSocketEvents();
+
+    // Send the text that was entered before the share code was generated
+    const pendingTextKey = `qd-pending-text-${code}`;
+    const pendingText = sessionStorage.getItem(pendingTextKey);
+
+    if (pendingText) {
+      try {
+        await SocketClient.sendMessage(code, pendingText);
+        sessionStorage.removeItem(pendingTextKey);
+      } catch (err) {
+        Toast.error(err.message || 'Message could not be sent.');
+      }
+    }
   }
 
   function renderQrCode() {
