@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QuickDrop — Share anything. No login. No app.</title>
+<meta name="description" content="QuickDrop lets you share text and files instantly with a simple room code. No account, no login, no app install." />
+<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ============ TOP BAR ============ -->
+  <header class="topbar">
+    <a href="#/" class="brand" data-nav="home">
+      <span class="brand-mark">Q</span>
+      <span class="brand-name">QuickDrop</span>
+    </a>
+    <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">
+      <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+      <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
+  </header>
+
+  <!-- ============ TOAST CONTAINER ============ -->
+  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+
+  <!-- ============ APP ROOT (views are swapped in here) ============ -->
+  <main id="app" class="app-root"></main>
+
+  <!-- ============ TEMPLATES ============ -->
+
+  <template id="tpl-home">
+    <section class="view view-home">
+      <div class="hero">
+        <span class="pill">No sign-up needed</span>
+        <h1>Share anything.<br/>No login. No app.</h1>
+        <p class="subtitle">Send text and files to anyone with a simple 6-character code. Everything disappears automatically after 15 minutes.</p>
+
+        <div class="home-actions">
+          <button class="btn btn-primary btn-lg" data-action="create-share">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Create Share
+          </button>
+          <button class="btn btn-secondary btn-lg" data-action="join-share">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+            Join Share
+          </button>
+        </div>
+
+        <form class="code-quickjoin" id="quickJoinForm" autocomplete="off">
+          <input
+            id="quickJoinInput"
+            type="text"
+            inputmode="text"
+            maxlength="6"
+            placeholder="Enter room code"
+            aria-label="Enter room code"
+          />
+          <button type="submit" class="btn btn-ghost">Go</button>
+        </form>
+      </div>
+
+      <div class="features">
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Instant</h3>
+          <p>Real-time transfer powered by WebSockets — no refreshing, no waiting.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🔒</div>
+          <h3>Private by default</h3>
+          <p>No accounts, no tracking. Rooms and files are wiped automatically.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⏱️</div>
+          <h3>Self-destructing</h3>
+          <p>Every room expires after 15 minutes — nothing lingers.</p>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-create">
+    <section class="view view-create">
+      <div class="center-card">
+        <h2>Creating your share room…</h2>
+        <p class="muted">Generating a secure room code.</p>
+        <div class="spinner" role="status" aria-label="Loading"></div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-join">
+    <section class="view view-join">
+      <div class="center-card">
+        <h2>Join a share</h2>
+        <p class="muted">Enter the 6-character code shared with you.</p>
+        <form id="joinForm" class="join-form" autocomplete="off">
+          <input
+            id="joinCodeInput"
+            class="code-input"
+            type="text"
+            inputmode="text"
+            maxlength="6"
+            placeholder="ABC123"
+            aria-label="Room code"
+          />
+          <button type="submit" class="btn btn-primary btn-lg" id="joinSubmitBtn">Join Room</button>
+        </form>
+        <div id="joinError" class="form-error" hidden></div>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-expired">
+    <section class="view view-expired">
+      <div class="center-card">
+        <div class="big-icon">⌛</div>
+        <h2>This room has expired</h2>
+        <p class="muted">For your privacy, rooms and their files are automatically deleted after 15 minutes.</p>
+        <button class="btn btn-primary" data-action="create-share">Create a new share</button>
+        <button class="btn btn-ghost" data-action="join-share">Join a different room</button>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-404">
+    <section class="view view-404">
+      <div class="center-card">
+        <div class="big-icon">🤔</div>
+        <h2>Page not found</h2>
+        <p class="muted">That page doesn't exist. Let's get you back home.</p>
+        <button class="btn btn-primary" data-action="home">Go Home</button>
+      </div>
+    </section>
+  </template>
+
+  <template id="tpl-room">
+    <section class="view view-room">
+      <div class="room-header">
+        <div class="room-code-block">
+          <span class="label">Room Code</span>
+          <div class="code-display">
+            <span id="roomCodeText" class="code-text"></span>
+            <button class="icon-btn" id="copyCodeBtn" title="Copy code" aria-label="Copy code">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="room-status">
+          <span class="status-dot" id="connectionDot"></span>
+          <span id="connectionText">Waiting for the other person…</span>
+        </div>
+
+        <div class="room-timer">
+          <span class="label">Expires in</span>
+          <span id="timerText" class="timer-text">15:00</span>
+        </div>
+      </div>
+
+      <div class="room-body">
+        <div class="qr-panel" id="qrPanel">
+          <span class="label">Scan to join</span>
+          <div id="qrCode" class="qr-code"></div>
+        </div>
+
+        <div class="room-main">
+          <!-- TEXT SHARE -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Text</h3>
+            </div>
+            <form id="textForm" class="text-form">
+              <textarea id="textInput" placeholder="Type a message to share…" maxlength="5000" rows="3"></textarea>
+              <button type="submit" class="btn btn-primary" id="sendTextBtn">Send</button>
+            </form>
+            <ul id="messageList" class="message-list">
+              <li class="empty-state" id="messageEmptyState">No messages yet. Say hello 👋</li>
+            </ul>
+          </div>
+
+          <!-- FILE SHARE -->
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Files</h3>
+              <span class="muted small">Max <span id="maxFileSizeLabel">50MB</span> per file · executables blocked</span>
+            </div>
+
+            <label for="fileInput" class="dropzone" id="dropzone">
+              <input type="file" id="fileInput" multiple hidden />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              <p><strong>Drag & drop files</strong> or click to browse</p>
+            </label>
+
+            <ul id="fileList" class="file-list">
+              <li class="empty-state" id="fileEmptyState">No files shared yet.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+  </template>
+
+  <!-- QR code generator (client-side, no data leaves the browser) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <script src="js/utils.js"></script>
+  <script src="js/toast.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/socket.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/room.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
