@@ -115,11 +115,15 @@ const App = (() => {
     sendFileBtn.disabled = true;
 
     try {
-      // IMPORTANT:
-      // Share/transfer is created ONLY after Send Now.
-      const transfer = await Api.createRoom();
+const transfer = await Api.createRoom();
 
-      const code = transfer.code;
+console.log('CREATE ROOM RESPONSE:', transfer);
+
+const code = transfer.code || transfer.roomCode || transfer.data?.code;
+
+if (!code) {
+  throw new Error('Server did not return a share code.');
+}
 
       sessionStorage.setItem(`qd-creator-${code}`, '1');
 
