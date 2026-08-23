@@ -1,8 +1,12 @@
 const roomService = require('./roomService');
 
-// Simple per-socket rate limiting for chat messages
+// =========================
+// MESSAGE RATE LIMIT
+// =========================
+
 const MESSAGE_WINDOW_MS = 10 * 1000;
 const MAX_MESSAGES_PER_WINDOW = 30;
+
 const messageCounters = new Map();
 
 function isMessageRateLimited(socketId) {
@@ -10,7 +14,10 @@ function isMessageRateLimited(socketId) {
 
   let counter = messageCounters.get(socketId);
 
-  if (!counter || now - counter.windowStart > MESSAGE_WINDOW_MS) {
+  if (
+    !counter ||
+    now - counter.windowStart > MESSAGE_WINDOW_MS
+  ) {
     counter = {
       count: 0,
       windowStart: now
@@ -18,15 +25,20 @@ function isMessageRateLimited(socketId) {
   }
 
   counter.count += 1;
-  messageCounters.set(socketId, counter);
+
+  messageCounters.set(
+    socketId,
+    counter
+  );
 
   return counter.count > MAX_MESSAGES_PER_WINDOW;
 }
 
 
-/**
- * Wires up all Socket.IO event handling.
- */
+// =========================
+// REGISTER SOCKET HANDLERS
+// =========================
+
 function registerSocketHandlers(io) {
 
   io.on('connection', (socket) => {
@@ -37,91 +49,16 @@ function registerSocketHandlers(io) {
     // =========================
     // JOIN ROOM
     // =========================
-    socket.on('room:join', ({ code, role, name }, ack) => {
 
-      const room = roomService.getRoom(code);
-
-      if (!room) {
-        return ack && ack({
-          ok: false,
-          error: 'This room does not exist or has expired.'
-        });
-      }
-
-
-      if (
-        roomService.roomIsFull(room) &&
-        !room.users.has(socket.id)
-      ) {
-        return ack && ack({
-          ok: false,
-          error: 'This room already has two participants.'
-        });
-      }
-
-
-      socket.join(room.code);
-
-      currentRoomCode = room.code;
-
-
-      // Add user
-      roomService.addUser(
-        room,
-        socket.id,
-        role === 'creator'
-          ? 'creator'
-          : 'joiner'
-      );
-
-
-      // Save user's display name on socket
-      socket.chatName =
-        (name || '').toString().trim().slice(0, 30) ||
-        (role === 'creator' ? 'You' : 'Guest');
-
-
-      // Store name in room user data if available
-      const user = room.users.get(socket.id);
-
-      if (user) {
-        user.name = socket.chatName;
-      }
-
-
-      // Tell other person someone joined
-      socket.to(room.code).emit(
-        'room:user-joined',
-        {
-          connectedUsers: room.users.size,
-          name: socket.chatName
-        }
-      );
-
-
-      ack && ack({
-        ok: true,
-
-        room: roomService.getPublicRoomView(room),
-
-        socketId: socket.id,
-
-        name: socket.chatName
-      });
-    });
-
-
-    // =========================
-    // SEND MESSAGE
-    // =========================
     socket.on(
-      'message:send',
-      ({ code, text }, ack) => {
+      'room:join',
+      ({ code, role, name }, ack) => {
 
         const room =
           roomService.getRoom(code);
 
         if (!room) {
+
           return ack && ack({
             ok: false,
             error:
@@ -130,7 +67,111 @@ function registerSocketHandlers(io) {
         }
 
 
-        if (!room.users.has(socket.id)) {
+        if (
+          roomService.roomIsFull(room) &&
+          !room.users.has(socket.id)
+        ) {
+
+          return ack && ack({
+            ok: false,
+            error:
+              'This room already has two participants.'
+          });
+        }
+
+
+        socket.join(room.code);
+
+        currentRoomCode =
+          room.code;
+
+
+        roomService.addUser(
+          room,
+          socket.id,
+          role === 'creator'
+            ? 'creator'
+            : 'joiner'
+        );
+
+
+        socket.chatName =
+          (name || '')
+            .toString()
+            .trim()
+            .slice(0, 30) ||
+          (role === 'creator'
+            ? 'You'
+            : 'Guest');
+
+
+        const user =
+          room.users.get(
+            socket.id
+          );
+
+        if (user) {
+          user.name =
+            socket.chatName;
+        }
+
+
+        socket
+          .to(room.code)
+          .emit(
+            'room:user-joined',
+            {
+              connectedUsers:
+                room.users.size,
+              name:
+                socket.chatName
+            }
+          );
+
+
+        ack && ack({
+          ok: true,
+
+          room:
+            roomService.getPublicRoomView(
+              room
+            ),
+
+          socketId:
+            socket.id,
+
+          name:
+            socket.chatName
+        });
+      }
+    );
+
+
+    // =========================
+    // SEND MESSAGE
+    // =========================
+
+    socket.on(
+      'message:send',
+      ({ code, text }, ack) => {
+
+        const room =
+          roomService.getRoom(code);
+
+        if (!room) {
+
+          return ack && ack({
+            ok: false,
+            error:
+              'This room does not exist or has expired.'
+          });
+        }
+
+
+        if (
+          !room.users.has(socket.id)
+        ) {
+
           return ack && ack({
             ok: false,
             error:
@@ -140,8 +181,11 @@ function registerSocketHandlers(io) {
 
 
         if (
-          isMessageRateLimited(socket.id)
+          isMessageRateLimited(
+            socket.id
+          )
         ) {
+
           return ack && ack({
             ok: false,
             error:
@@ -157,6 +201,7 @@ function registerSocketHandlers(io) {
 
 
         if (!trimmed) {
+
           return ack && ack({
             ok: false,
             error:
@@ -165,7 +210,10 @@ function registerSocketHandlers(io) {
         }
 
 
-        if (trimmed.length > 5000) {
+        if (
+          trimmed.length > 5000
+        ) {
+
           return ack && ack({
             ok: false,
             error:
@@ -182,12 +230,11 @@ function registerSocketHandlers(io) {
           );
 
 
-        // Add sender name
         message.senderName =
-          socket.chatName || 'Guest';
+          socket.chatName ||
+          'Guest';
 
 
-        // Send to both people
         io.to(room.code).emit(
           'message:receive',
           message
@@ -205,6 +252,7 @@ function registerSocketHandlers(io) {
     // =========================
     // TYPING START
     // =========================
+
     socket.on(
       'typing:start',
       ({ code }) => {
@@ -220,13 +268,16 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket.to(room.code).emit(
-          'typing:start',
-          {
-            name:
-              socket.chatName || 'Someone'
-          }
-        );
+        socket
+          .to(room.code)
+          .emit(
+            'typing:start',
+            {
+              name:
+                socket.chatName ||
+                'Someone'
+            }
+          );
       }
     );
 
@@ -234,6 +285,7 @@ function registerSocketHandlers(io) {
     // =========================
     // TYPING STOP
     // =========================
+
     socket.on(
       'typing:stop',
       ({ code }) => {
@@ -249,16 +301,19 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket.to(room.code).emit(
-          'typing:stop'
-        );
+        socket
+          .to(room.code)
+          .emit(
+            'typing:stop'
+          );
       }
     );
 
 
     // =========================
-    // VOICE CALL SIGNALING
+    // VOICE CALL
     // =========================
+
     socket.on(
       'call:voice',
       ({ code, signal }) => {
@@ -274,22 +329,29 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket.to(room.code).emit(
-          'call:voice',
-          {
-            from: socket.id,
-            name:
-              socket.chatName || 'Someone',
-            signal
-          }
-        );
+        socket
+          .to(room.code)
+          .emit(
+            'call:voice',
+            {
+              from:
+                socket.id,
+
+              name:
+                socket.chatName ||
+                'Someone',
+
+              signal
+            }
+          );
       }
     );
 
 
     // =========================
-    // VIDEO CALL SIGNALING
+    // VIDEO CALL
     // =========================
+
     socket.on(
       'call:video',
       ({ code, signal }) => {
@@ -305,22 +367,102 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket.to(room.code).emit(
-          'call:video',
-          {
-            from: socket.id,
-            name:
-              socket.chatName || 'Someone',
-            signal
-          }
-        );
+        socket
+          .to(room.code)
+          .emit(
+            'call:video',
+            {
+              from:
+                socket.id,
+
+              name:
+                socket.chatName ||
+                'Someone',
+
+              signal
+            }
+          );
       }
     );
 
 
     // =========================
-    // CALL END
+    // WEBRTC ANSWER
     // =========================
+
+    socket.on(
+      'call:answer',
+      ({ code, signal }) => {
+
+        const room =
+          roomService.getRoom(code);
+
+        if (
+          !room ||
+          !room.users.has(socket.id)
+        ) {
+          return;
+        }
+
+
+        socket
+          .to(room.code)
+          .emit(
+            'call:answer',
+            {
+              from:
+                socket.id,
+
+              signal
+            }
+          );
+      }
+    );
+
+
+    // =========================
+    // WEBRTC ICE CANDIDATE
+    // =========================
+
+    socket.on(
+      'call:ice',
+      ({ code, candidate }) => {
+
+        const room =
+          roomService.getRoom(code);
+
+        if (
+          !room ||
+          !room.users.has(socket.id)
+        ) {
+          return;
+        }
+
+
+        if (!candidate) {
+          return;
+        }
+
+
+        socket
+          .to(room.code)
+          .emit(
+            'call:ice',
+            {
+              from:
+                socket.id,
+
+              candidate
+            }
+          );
+      }
+    );
+
+
+    // =========================
+    // END CALL
+    // =========================
+
     socket.on(
       'call:end',
       ({ code }) => {
@@ -336,9 +478,11 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket.to(room.code).emit(
-          'call:end'
-        );
+        socket
+          .to(room.code)
+          .emit(
+            'call:end'
+          );
       }
     );
 
@@ -346,6 +490,7 @@ function registerSocketHandlers(io) {
     // =========================
     // LEAVE ROOM
     // =========================
+
     socket.on(
       'room:leave',
       ({ code }) => {
@@ -362,6 +507,7 @@ function registerSocketHandlers(io) {
     // =========================
     // DISCONNECT
     // =========================
+
     socket.on(
       'disconnect',
       () => {
@@ -389,6 +535,7 @@ function registerSocketHandlers(io) {
 // =========================
 // HANDLE LEAVE
 // =========================
+
 function handleLeave(
   socket,
   code,
@@ -414,23 +561,33 @@ function handleLeave(
   );
 
 
-  socket.to(room.code).emit(
-    'room:user-left',
-    {
-      connectedUsers:
-        room.users.size
-    }
-  );
+  socket
+    .to(room.code)
+    .emit(
+      'room:user-left',
+      {
+        connectedUsers:
+          room.users.size
+      }
+    );
 
 
-  socket.to(room.code).emit(
-    'typing:stop'
-  );
+  // Stop typing for remaining user
+
+  socket
+    .to(room.code)
+    .emit(
+      'typing:stop'
+    );
 
 
-  socket.to(room.code).emit(
-    'call:end'
-  );
+  // End active call for remaining user
+
+  socket
+    .to(room.code)
+    .emit(
+      'call:end'
+    );
 }
 
 
