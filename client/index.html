@@ -2,8 +2,13 @@
 <html lang="en" data-theme="light">
 
 <head>
+
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
 
   <title>JustUs ❤️ — Private Chat. No Login.</title>
 
@@ -18,17 +23,26 @@
     type="image/svg+xml"
   />
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    rel="preconnect"
+    href="https://fonts.googleapis.com"
+  >
 
   <link
     href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
     rel="stylesheet"
   >
 
-  <link rel="stylesheet" href="css/style.css" />
+  <link
+    rel="stylesheet"
+    href="css/style.css"
+  />
+
 </head>
 
+
 <body>
+
 
   <!-- =========================
        TOP BAR
@@ -41,9 +55,17 @@
       class="brand"
       data-nav="home"
     >
-      <span class="brand-mark">❤️</span>
-      <span class="brand-name">JustUs</span>
+
+      <span class="brand-mark">
+        ❤️
+      </span>
+
+      <span class="brand-name">
+        JustUs
+      </span>
+
     </a>
+
 
     <button
       id="themeToggle"
@@ -60,14 +82,27 @@
         stroke="currentColor"
         stroke-width="2"
       >
-        <circle cx="12" cy="12" r="4"/>
+
+        <circle
+          cx="12"
+          cy="12"
+          r="4"
+        />
+
         <path d="M12 2v2M12 20v2"/>
+
         <path d="M4.93 4.93l1.41 1.41"/>
+
         <path d="M17.66 17.66l1.41 1.41"/>
+
         <path d="M2 12h2M20 12h2"/>
+
         <path d="M4.93 19.07l1.41-1.41"/>
+
         <path d="M17.66 6.34l1.41-1.41"/>
+
       </svg>
+
 
       <svg
         class="icon icon-moon"
@@ -76,7 +111,11 @@
         stroke="currentColor"
         stroke-width="2"
       >
-        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+
+        <path
+          d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"
+        />
+
       </svg>
 
     </button>
@@ -119,10 +158,12 @@
           ❤️ No phone number • No account
         </span>
 
+
         <h1>
           Just you two.<br/>
           <span>JustUs ❤️</span>
         </h1>
+
 
         <p class="subtitle">
           Start a private conversation without a phone number,
@@ -139,6 +180,7 @@
           >
             ❤️ Start a Chat
           </button>
+
 
           <button
             class="btn btn-secondary btn-lg"
@@ -165,6 +207,7 @@
             placeholder="Enter chat code"
             aria-label="Enter chat code"
           />
+
 
           <button
             type="submit"
@@ -251,9 +294,11 @@
           JustUs ❤️
         </span>
 
+
         <h2>
           Start a private chat
         </h2>
+
 
         <p class="muted">
           No phone number. No account. Just you two.
@@ -265,6 +310,7 @@
           <label for="chatName">
             Your name
           </label>
+
 
           <input
             id="chatName"
@@ -314,9 +360,11 @@
           💕
         </div>
 
+
         <h2>
           Join your chat ❤️
         </h2>
+
 
         <p class="muted">
           Enter your name and the 6-character chat code.
@@ -333,6 +381,7 @@
             Your name
           </label>
 
+
           <input
             id="joinName"
             type="text"
@@ -346,6 +395,7 @@
           <label for="joinCodeInput">
             Chat code
           </label>
+
 
           <input
             id="joinCodeInput"
@@ -398,9 +448,11 @@
           ⌛
         </div>
 
+
         <h2>
           This chat has expired ❤️
         </h2>
+
 
         <p class="muted">
           For your privacy, this temporary conversation has been deleted.
@@ -445,13 +497,16 @@
           🤔
         </div>
 
+
         <h2>
           Page not found
         </h2>
 
+
         <p class="muted">
           That page doesn't exist. Let's get you back home.
         </p>
+
 
         <button
           class="btn btn-primary"
@@ -489,12 +544,14 @@
             Chat Code
           </span>
 
+
           <div class="code-display">
 
             <span
               id="roomCodeText"
               class="code-text"
             ></span>
+
 
             <button
               class="icon-btn"
@@ -510,6 +567,7 @@
                 stroke="currentColor"
                 stroke-width="2"
               >
+
                 <rect
                   x="9"
                   y="9"
@@ -517,6 +575,7 @@
                   height="13"
                   rx="2"
                 />
+
 
                 <path
                   d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
@@ -538,6 +597,7 @@
             id="connectionDot"
           ></span>
 
+
           <span id="connectionText">
             Waiting for your person… ❤️
           </span>
@@ -550,6 +610,7 @@
           <span class="label">
             Expires in
           </span>
+
 
           <span
             id="timerText"
@@ -571,6 +632,7 @@
 
 
         <!-- QR -->
+
         <div
           class="qr-panel"
           id="qrPanel"
@@ -579,6 +641,7 @@
           <span class="label">
             Scan to join ❤️
           </span>
+
 
           <div
             id="qrCode"
@@ -589,6 +652,7 @@
 
 
         <!-- MAIN -->
+
         <div class="room-main">
 
 
@@ -601,12 +665,12 @@
 
             <div class="panel-header">
 
-
               <div>
 
                 <h3>
                   💬 JustUs Chat
                 </h3>
+
 
                 <span
                   class="muted small"
@@ -617,8 +681,8 @@
 
 
               <!-- CALL BUTTONS -->
-              <div class="call-actions">
 
+              <div class="call-actions">
 
                 <button
                   class="icon-btn"
@@ -662,6 +726,7 @@
                   Call ❤️
                 </strong>
 
+
                 <button
                   id="endCallBtn"
                   class="icon-btn"
@@ -675,8 +740,11 @@
               </div>
 
 
-              <div class="call-videos">
+              <!-- =========================
+                   CALL MEDIA
+              ========================== -->
 
+              <div class="call-videos">
 
                 <!-- Remote video -->
                 <video
@@ -684,6 +752,17 @@
                   autoplay
                   playsinline
                 ></video>
+
+
+                <!-- IMPORTANT:
+                     Dedicated remote audio
+                     for mobile browsers -->
+                <audio
+                  id="remoteAudio"
+                  autoplay
+                  playsinline
+                  preload="auto"
+                ></audio>
 
 
                 <!-- Local video -->
@@ -697,7 +776,24 @@
               </div>
 
 
-              <!-- Incoming call -->
+              <!-- =========================
+                   ENABLE AUDIO
+              ========================== -->
+
+              <button
+                id="enableAudioBtn"
+                class="btn btn-primary"
+                type="button"
+                hidden
+              >
+                🔊 Enable Sound
+              </button>
+
+
+              <!-- =========================
+                   INCOMING CALL
+              ========================== -->
+
               <div
                 id="incomingCallBox"
                 hidden
@@ -794,6 +890,7 @@
   <script
     src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
   ></script>
+
 
   <script src="/socket.io/socket.io.js"></script>
 
