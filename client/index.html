@@ -84,15 +84,87 @@
   </template>
 
   <template id="tpl-create">
-    <section class="view view-create">
-      <div class="center-card">
-        <h2>Creating your share room…</h2>
-        <p class="muted">Generating a secure room code.</p>
-        <div class="spinner" role="status" aria-label="Loading"></div>
-      </div>
-    </section>
-  </template>
+  <section class="view view-create">
+    <div class="center-card create-share-card">
 
+      <span class="pill">QuickDrop</span>
+
+      <h2>What do you want to share?</h2>
+
+      <p class="muted">
+        Send text or a file. Your share code will be generated after you press Send Now.
+      </p>
+
+      <div class="share-type-buttons">
+        <button id="textShareBtn" class="btn btn-primary" type="button">
+          Text
+        </button>
+
+        <button id="fileShareBtn" class="btn btn-secondary" type="button">
+          File
+        </button>
+      </div>
+
+      <div id="textSharePanel">
+        <textarea
+          id="shareTextInput"
+          rows="7"
+          maxlength="10000"
+          placeholder="Write something to share..."
+        ></textarea>
+
+        <button
+          id="sendTextBtn"
+          class="btn btn-primary btn-lg"
+          type="button"
+        >
+          Send Now
+        </button>
+      </div>
+
+      <div id="fileSharePanel" hidden>
+
+        <div id="dropZone" class="drop-zone">
+          <p>Drag & Drop your file here</p>
+          <span>or</span>
+
+          <label class="btn btn-secondary">
+            Choose File
+            <input
+              id="shareFileInput"
+              type="file"
+              hidden
+            />
+          </label>
+
+          <p id="selectedFileName" class="muted"></p>
+        </div>
+
+        <button
+          id="sendFileBtn"
+          class="btn btn-primary btn-lg"
+          type="button"
+          disabled
+        >
+          Send Now
+        </button>
+
+      </div>
+
+      <div id="shareError" class="form-error" hidden></div>
+
+      <div id="sendProgress" hidden>
+        <p id="sendStatus">Preparing your transfer...</p>
+
+        <div class="progress-bar">
+          <div id="sendProgressBar"></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+</template>
+  
   <template id="tpl-join">
     <section class="view view-join">
       <div class="center-card">
