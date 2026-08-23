@@ -1,6 +1,6 @@
 /* Controls the active JustUs chat room:
    chat, room code, QR code, countdown, connection status,
-   names, and real-time messages.
+   names, typing indicator, voice call and video call signaling.
 */
 
 const RoomController = (() => {
@@ -10,6 +10,7 @@ const RoomController = (() => {
   let myName = 'You';
   let expiresAt = null;
   let countdownInterval = null;
+  let typingTimer = null;
 
   let knownMessageIds = new Set();
 
@@ -69,7 +70,6 @@ const RoomController = (() => {
 
     code = Utils.normalizeCode(roomCode);
 
-    // Get current user's saved name
     myName =
       sessionStorage.getItem(
         `qd-chat-name-${code}`
@@ -86,7 +86,9 @@ const RoomController = (() => {
     renderQrCode();
 
 
-    // Copy code
+    // =========================
+    // COPY CODE
+    // =========================
     if (els.copyCodeBtn) {
       els.copyCodeBtn.addEventListener(
         'click',
@@ -95,7 +97,9 @@ const RoomController = (() => {
     }
 
 
-    // Text message
+    // =========================
+    // SEND MESSAGE
+    // =========================
     if (els.textForm) {
       els.textForm.addEventListener(
         'submit',
@@ -104,33 +108,9 @@ const RoomController = (() => {
     }
 
 
-    // Voice call button
-    if (els.voiceCallBtn) {
-      els.voiceCallBtn.addEventListener(
-        'click',
-        () => {
-          Toast.info(
-            'Voice calling will be added next.'
-          );
-        }
-      );
-    }
-
-
-    // Video call button
-    if (els.videoCallBtn) {
-      els.videoCallBtn.addEventListener(
-        'click',
-        () => {
-          Toast.info(
-            'Video calling will be added next.'
-          );
-        }
-      );
-    }
-
-
-    // Get room information
+    // =========================
+    // GET ROOM INFORMATION
+    // =========================
     try {
 
       const roomState =
@@ -152,7 +132,9 @@ const RoomController = (() => {
     }
 
 
-    // Join Socket.IO room
+    // =========================
+    // JOIN SOCKET ROOM
+    // =========================
     try {
 
       const role =
@@ -170,6 +152,10 @@ const RoomController = (() => {
 
       mySocketId =
         joinResponse.socketId;
+
+      if (joinResponse.name) {
+        myName = joinResponse.name;
+      }
 
       updateConnectionStatus(
         joinResponse.room.connectedUsers
@@ -190,6 +176,8 @@ const RoomController = (() => {
     bindSocketEvents();
 
     setupTyping();
+
+    setupCalls();
   }
 
 
@@ -225,10 +213,13 @@ const RoomController = (() => {
       .then((ok) => {
 
         if (ok) {
+
           Toast.success(
             'Chat code copied'
           );
+
         } else {
+
           Toast.error(
             'Could not copy code'
           );
@@ -347,21 +338,24 @@ const RoomController = (() => {
     const socket =
       SocketClient.get();
 
+
+    // Someone joined
     socket.on(
       'room:user-joined',
-      ({ connectedUsers }) => {
+      ({ connectedUsers, name }) => {
 
         updateConnectionStatus(
           connectedUsers
         );
 
         Toast.info(
-          'Your person joined ❤️'
+          `${name || 'Your person'} joined ❤️`
         );
       }
     );
 
 
+    // Someone left
     socket.on(
       'room:user-left',
       ({ connectedUsers }) => {
@@ -369,10 +363,15 @@ const RoomController = (() => {
         updateConnectionStatus(
           connectedUsers
         );
+
+        if (els.typingStatus) {
+          els.typingStatus.textContent = '';
+        }
       }
     );
 
 
+    // New message
     socket.on(
       'message:receive',
       (message) => {
@@ -384,6 +383,70 @@ const RoomController = (() => {
     );
 
 
+    // Typing started
+    socket.on(
+      'typing:start',
+      ({ name }) => {
+
+        if (!els.typingStatus) {
+          return;
+        }
+
+        els.typingStatus.textContent =
+          `${name || 'Your person'} is typing…`;
+      }
+    );
+
+
+    // Typing stopped
+    socket.on(
+      'typing:stop',
+      () => {
+
+        if (els.typingStatus) {
+          els.typingStatus.textContent = '';
+        }
+      }
+    );
+
+
+    // Voice call signal
+    socket.on(
+      'call:voice',
+      ({ name }) => {
+
+        Toast.info(
+          `${name || 'Your person'} is calling 📞`
+        );
+      }
+    );
+
+
+    // Video call signal
+    socket.on(
+      'call:video',
+      ({ name }) => {
+
+        Toast.info(
+          `${name || 'Your person'} is calling 📹`
+        );
+      }
+    );
+
+
+    // Call ended
+    socket.on(
+      'call:end',
+      () => {
+
+        Toast.info(
+          'Call ended.'
+        );
+      }
+    );
+
+
+    // Room expired
     socket.on(
       'room:expired',
       ({ code: expiredCode }) => {
@@ -397,6 +460,7 @@ const RoomController = (() => {
     );
 
 
+    // Reconnect
     socket.io.on(
       'reconnect',
       async () => {
@@ -465,6 +529,8 @@ const RoomController = (() => {
 
     try {
 
+      SocketClient.stopTyping(code);
+
       await SocketClient.sendMessage(
         code,
         text
@@ -493,9 +559,7 @@ const RoomController = (() => {
   // =========================
   // LOAD OLD MESSAGES
   // =========================
-  function hydrateMessages(
-    messages
-  ) {
+  function hydrateMessages(messages) {
 
     if (!els.messageList) {
       return;
@@ -508,9 +572,7 @@ const RoomController = (() => {
       messages.length === 0
     ) {
 
-      if (
-        els.messageEmptyState
-      ) {
+      if (els.messageEmptyState) {
 
         els.messageList.appendChild(
           els.messageEmptyState
@@ -529,9 +591,7 @@ const RoomController = (() => {
   // =========================
   // DISPLAY MESSAGE
   // =========================
-  function appendMessage(
-    message
-  ) {
+  function appendMessage(message) {
 
     if (
       !els.messageList ||
@@ -608,7 +668,7 @@ const RoomController = (() => {
     `;
 
 
-    // Show sender name
+    // Sender name
     const nameElement =
       li.querySelector(
         '.message-name'
@@ -621,7 +681,7 @@ const RoomController = (() => {
         : 'Your person');
 
 
-    // Show message
+    // Message text
     const textElement =
       li.querySelector(
         '.message-text'
@@ -631,12 +691,11 @@ const RoomController = (() => {
       message.text;
 
 
-    // Copy button
+    // Copy
     const copyButton =
       li.querySelector(
         '.copy-text-btn'
       );
-
 
     copyButton.addEventListener(
       'click',
@@ -647,6 +706,7 @@ const RoomController = (() => {
         ).then((ok) => {
 
           if (ok) {
+
             Toast.success(
               'Message copied'
             );
@@ -676,23 +736,97 @@ const RoomController = (() => {
       return;
     }
 
-    let typingTimer = null;
 
     els.textInput.addEventListener(
       'input',
+      () => {
+
+        SocketClient.startTyping(
+          code
+        );
+
+
+        clearTimeout(
+          typingTimer
+        );
+
+
+        typingTimer =
+          setTimeout(
+            () => {
+
+              SocketClient.stopTyping(
+                code
+              );
+
+            },
+            1000
+          );
+      }
+    );
+
+
+    els.textInput.addEventListener(
+      'blur',
       () => {
 
         clearTimeout(
           typingTimer
         );
 
-        typingTimer =
-          setTimeout(
-            () => {},
-            700
-          );
+        SocketClient.stopTyping(
+          code
+        );
       }
     );
+  }
+
+
+  // =========================
+  // CALL BUTTONS
+  // =========================
+  function setupCalls() {
+
+    if (els.voiceCallBtn) {
+
+      els.voiceCallBtn.addEventListener(
+        'click',
+        () => {
+
+          SocketClient.sendVoiceCallSignal(
+            code,
+            {
+              type: 'voice-call-request'
+            }
+          );
+
+          Toast.info(
+            'Calling your person 📞'
+          );
+        }
+      );
+    }
+
+
+    if (els.videoCallBtn) {
+
+      els.videoCallBtn.addEventListener(
+        'click',
+        () => {
+
+          SocketClient.sendVideoCallSignal(
+            code,
+            {
+              type: 'video-call-request'
+            }
+          );
+
+          Toast.info(
+            'Calling your person 📹'
+          );
+        }
+      );
+    }
   }
 
 
@@ -705,25 +839,47 @@ const RoomController = (() => {
       countdownInterval
     );
 
+    clearTimeout(
+      typingTimer
+    );
+
+
     if (code) {
+
+      SocketClient.stopTyping(
+        code
+      );
+
+      SocketClient.endCall(
+        code
+      );
+
       SocketClient.leaveRoom(
         code
       );
     }
 
+
     const socket =
       SocketClient.get();
+
 
     [
       'room:user-joined',
       'room:user-left',
       'message:receive',
+      'typing:start',
+      'typing:stop',
+      'call:voice',
+      'call:video',
+      'call:end',
       'room:expired'
     ].forEach(
       (evt) => {
         socket.off(evt);
       }
     );
+
 
     code = null;
     mySocketId = null;
