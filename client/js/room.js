@@ -21,6 +21,7 @@ const RoomController = (() => {
 
   let peerConnection = null;
   let localStream = null;
+  let remoteStream = null;
 
   let pendingOffer = null;
   let pendingIceCandidates = [];
@@ -35,6 +36,9 @@ const RoomController = (() => {
       },
       {
         urls: 'stun:stun1.l.google.com:19302'
+      },
+      {
+        urls: 'stun:stun2.l.google.com:19302'
       }
     ]
   };
@@ -99,11 +103,11 @@ const RoomController = (() => {
     els.remoteVideo =
       document.getElementById('remoteVideo');
 
-    els.remoteAudio =
-      document.getElementById('remoteAudio');
-
     els.localVideo =
       document.getElementById('localVideo');
+
+    els.remoteAudio =
+      document.getElementById('remoteAudio');
 
     els.incomingCallBox =
       document.getElementById('incomingCallBox');
@@ -121,8 +125,9 @@ const RoomController = (() => {
       document.getElementById('enableAudioBtn');
 
 
-    // Safety fallback if audio element
-    // is missing from HTML.
+    // =========================
+    // AUDIO FALLBACK
+    // =========================
 
     if (!els.remoteAudio) {
 
@@ -147,6 +152,39 @@ const RoomController = (() => {
       document.body.appendChild(
         els.remoteAudio
       );
+    }
+
+
+    // =========================
+    // VIDEO SETTINGS
+    // =========================
+
+    if (els.remoteVideo) {
+
+      els.remoteVideo.autoplay =
+        true;
+
+      els.remoteVideo.playsInline =
+        true;
+
+      els.remoteVideo.controls =
+        false;
+    }
+
+
+    if (els.localVideo) {
+
+      els.localVideo.autoplay =
+        true;
+
+      els.localVideo.playsInline =
+        true;
+
+      els.localVideo.muted =
+        true;
+
+      els.localVideo.controls =
+        false;
     }
   }
 
@@ -173,13 +211,23 @@ const RoomController = (() => {
     pendingIceCandidates =
       [];
 
+    remoteStream =
+      null;
+
+
     if (els.roomCodeText) {
+
       els.roomCodeText.textContent =
         code;
     }
 
+
     renderQrCode();
 
+
+    // =========================
+    // COPY CODE
+    // =========================
 
     if (els.copyCodeBtn) {
 
@@ -190,6 +238,10 @@ const RoomController = (() => {
     }
 
 
+    // =========================
+    // MESSAGE FORM
+    // =========================
+
     if (els.textForm) {
 
       els.textForm.addEventListener(
@@ -199,12 +251,19 @@ const RoomController = (() => {
     }
 
 
+    // =========================
+    // AUDIO UNLOCK
+    // =========================
+
     if (els.enableAudioBtn) {
 
       els.enableAudioBtn.addEventListener(
         'click',
         enableRemoteAudio
       );
+
+      els.enableAudioBtn.hidden =
+        true;
     }
 
 
@@ -246,20 +305,24 @@ const RoomController = (() => {
           ? 'creator'
           : 'joiner';
 
+
       const joinResponse =
         await SocketClient.joinRoom(
           code,
           role
         );
 
+
       mySocketId =
         joinResponse.socketId;
+
 
       if (joinResponse.name) {
 
         myName =
           joinResponse.name;
       }
+
 
       updateConnectionStatus(
         joinResponse.room.connectedUsers
@@ -295,11 +358,14 @@ const RoomController = (() => {
       return;
     }
 
+
     els.qrCode.innerHTML =
       '';
 
+
     const joinUrl =
       `${window.location.origin}/#/room/${code}`;
+
 
     new QRCode(
       els.qrCode,
@@ -352,7 +418,9 @@ const RoomController = (() => {
       countdownInterval
     );
 
+
     updateCountdownDisplay();
+
 
     countdownInterval =
       setInterval(
@@ -370,6 +438,7 @@ const RoomController = (() => {
     ) {
       return;
     }
+
 
     const remaining =
       new Date(expiresAt).getTime()
@@ -419,7 +488,9 @@ const RoomController = (() => {
       'This chat has expired.'
     );
 
+
     endWebRTC(false);
+
 
     Router.navigate(
       '/expired'
@@ -441,6 +512,7 @@ const RoomController = (() => {
     ) {
       return;
     }
+
 
     const otherPresent =
       connectedUsers >= 2;
@@ -469,6 +541,10 @@ const RoomController = (() => {
       SocketClient.get();
 
 
+    // =========================
+    // USER JOINED
+    // =========================
+
     socket.on(
       'room:user-joined',
       ({ connectedUsers, name }) => {
@@ -477,12 +553,17 @@ const RoomController = (() => {
           connectedUsers
         );
 
+
         Toast.info(
           `${name || 'Your person'} joined ❤️`
         );
       }
     );
 
+
+    // =========================
+    // USER LEFT
+    // =========================
 
     socket.on(
       'room:user-left',
@@ -492,16 +573,22 @@ const RoomController = (() => {
           connectedUsers
         );
 
+
         if (els.typingStatus) {
 
           els.typingStatus.textContent =
             '';
         }
 
+
         endWebRTC(false);
       }
     );
 
+
+    // =========================
+    // MESSAGE
+    // =========================
 
     socket.on(
       'message:receive',
@@ -515,7 +602,7 @@ const RoomController = (() => {
 
 
     // =========================
-    // TYPING
+    // TYPING START
     // =========================
 
     socket.on(
@@ -531,6 +618,10 @@ const RoomController = (() => {
     );
 
 
+    // =========================
+    // TYPING STOP
+    // =========================
+
     socket.on(
       'typing:stop',
       () => {
@@ -545,7 +636,7 @@ const RoomController = (() => {
 
 
     // =========================
-    // VOICE CALL
+    // VOICE SIGNAL
     // =========================
 
     socket.on(
@@ -555,6 +646,7 @@ const RoomController = (() => {
         if (!signal) {
           return;
         }
+
 
         await handleCallSignal(
           'voice',
@@ -566,7 +658,7 @@ const RoomController = (() => {
 
 
     // =========================
-    // VIDEO CALL
+    // VIDEO SIGNAL
     // =========================
 
     socket.on(
@@ -576,6 +668,7 @@ const RoomController = (() => {
         if (!signal) {
           return;
         }
+
 
         await handleCallSignal(
           'video',
@@ -598,6 +691,9 @@ const RoomController = (() => {
           return;
         }
 
+
+        // ICE can arrive before
+        // remote description.
 
         if (
           !peerConnection ||
@@ -640,6 +736,7 @@ const RoomController = (() => {
       () => {
 
         endWebRTC(false);
+
 
         Toast.info(
           'Call ended.'
@@ -738,6 +835,7 @@ const RoomController = (() => {
 
     e.preventDefault();
 
+
     if (!els.textInput) {
       return;
     }
@@ -792,6 +890,7 @@ const RoomController = (() => {
         btn.disabled = false;
       }
 
+
       els.textInput.focus();
     }
   }
@@ -825,6 +924,7 @@ const RoomController = (() => {
           els.messageEmptyState
         );
       }
+
 
       return;
     }
@@ -1077,6 +1177,7 @@ const RoomController = (() => {
             code
           );
 
+
           endWebRTC(false);
         }
       );
@@ -1127,16 +1228,18 @@ const RoomController = (() => {
 
     try {
 
-      // Get microphone/camera FIRST.
-      // This is important on mobile.
+      // Get media from the user FIRST.
+      // This is important for mobile browsers.
 
       localStream =
         await navigator.mediaDevices.getUserMedia({
+
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true
           },
+
           video:
             type === 'video'
         });
@@ -1185,7 +1288,8 @@ const RoomController = (() => {
 
         type: 'offer',
 
-        callType: type,
+        callType:
+          type,
 
         sdp:
           peerConnection.localDescription
@@ -1219,7 +1323,9 @@ const RoomController = (() => {
         err
       );
 
+
       endWebRTC(false);
+
 
       Toast.error(
         'Could not start the call. Check microphone/camera permission.'
@@ -1240,6 +1346,14 @@ const RoomController = (() => {
       );
 
 
+    remoteStream =
+      new MediaStream();
+
+
+    // =========================
+    // ICE
+    // =========================
+
     peerConnection.onicecandidate =
       (event) => {
 
@@ -1255,12 +1369,12 @@ const RoomController = (() => {
       };
 
 
-    // IMPORTANT:
-    // Remote audio + video arrive
-    // together in the remote stream.
+    // =========================
+    // REMOTE TRACK
+    // =========================
 
     peerConnection.ontrack =
-      (event) => {
+      async (event) => {
 
         console.log(
           'REMOTE TRACK:',
@@ -1268,15 +1382,29 @@ const RoomController = (() => {
         );
 
 
-        let remoteStream =
-          event.streams &&
-          event.streams[0];
+        // Always add every remote track
+        // to ONE remote MediaStream.
 
-
-        if (!remoteStream) {
+        if (
+          !remoteStream
+        ) {
 
           remoteStream =
             new MediaStream();
+        }
+
+
+        const alreadyExists =
+          remoteStream
+            .getTracks()
+            .some(
+              (track) =>
+                track.id ===
+                event.track.id
+            );
+
+
+        if (!alreadyExists) {
 
           remoteStream.addTrack(
             event.track
@@ -1284,15 +1412,20 @@ const RoomController = (() => {
         }
 
 
-        // Remote VIDEO
+        // =========================
+        // REMOTE VIDEO
+        // =========================
 
-        if (
-          els.remoteVideo &&
-          remoteStream
-        ) {
+        if (els.remoteVideo) {
 
           els.remoteVideo.srcObject =
             remoteStream;
+
+          els.remoteVideo.autoplay =
+            true;
+
+          els.remoteVideo.playsInline =
+            true;
 
           els.remoteVideo.muted =
             false;
@@ -1300,32 +1433,34 @@ const RoomController = (() => {
           els.remoteVideo.volume =
             1;
 
-          els.remoteVideo.playsInline =
-            true;
 
+          try {
 
-          els.remoteVideo.play()
-            .catch((err) => {
+            await els.remoteVideo.play();
 
-              console.log(
-                'Remote video autoplay blocked:',
-                err
-              );
-            });
+          } catch (err) {
+
+            console.log(
+              'Video play blocked:',
+              err
+            );
+          }
         }
 
 
-        // Remote AUDIO
+        // =========================
+        // REMOTE AUDIO
+        // =========================
 
-        if (
-          els.remoteAudio &&
-          remoteStream
-        ) {
+        if (els.remoteAudio) {
 
           els.remoteAudio.srcObject =
             remoteStream;
 
           els.remoteAudio.autoplay =
+            true;
+
+          els.remoteAudio.playsInline =
             true;
 
           els.remoteAudio.muted =
@@ -1334,41 +1469,54 @@ const RoomController = (() => {
           els.remoteAudio.volume =
             1;
 
-          els.remoteAudio.playsInline =
-            true;
+
+          try {
+
+            await els.remoteAudio.play();
+
+            if (
+              els.enableAudioBtn
+            ) {
+
+              els.enableAudioBtn.hidden =
+                true;
+            }
+
+          } catch (err) {
+
+            console.log(
+              'Audio autoplay blocked:',
+              err
+            );
 
 
-          els.remoteAudio.play()
-            .then(() => {
+            if (
+              els.enableAudioBtn
+            ) {
 
-              if (
-                els.enableAudioBtn
-              ) {
-
-                els.enableAudioBtn.hidden =
-                  true;
-              }
-
-            })
-            .catch((err) => {
-
-              console.log(
-                'Remote audio autoplay blocked:',
-                err
-              );
+              els.enableAudioBtn.hidden =
+                false;
+            }
+          }
+        }
 
 
-              if (
-                els.enableAudioBtn
-              ) {
+        // If mobile browser blocks
+        // autoplay, give user a button.
 
-                els.enableAudioBtn.hidden =
-                  false;
-              }
-            });
+        if (
+          els.enableAudioBtn
+        ) {
+
+          els.enableAudioBtn.hidden =
+            false;
         }
       };
 
+
+    // =========================
+    // CONNECTION STATE
+    // =========================
 
     peerConnection.onconnectionstatechange =
       () => {
@@ -1395,6 +1543,12 @@ const RoomController = (() => {
           Toast.success(
             'Call connected ❤️'
           );
+
+
+          // Try audio again once
+          // connection is fully established.
+
+          enableRemoteAudio();
         }
 
 
@@ -1408,6 +1562,10 @@ const RoomController = (() => {
       };
 
 
+    // =========================
+    // ICE STATE
+    // =========================
+
     peerConnection.oniceconnectionstatechange =
       () => {
 
@@ -1417,9 +1575,20 @@ const RoomController = (() => {
 
 
         console.log(
-          'ICE connection state:',
+          'ICE state:',
           peerConnection.iceConnectionState
         );
+
+
+        if (
+          peerConnection.iceConnectionState ===
+          'failed'
+        ) {
+
+          console.warn(
+            'ICE failed. TURN server may be required on some networks.'
+          );
+        }
       };
   }
 
@@ -1446,6 +1615,7 @@ const RoomController = (() => {
       SocketClient.endCall(
         code
       );
+
 
       endWebRTC(false);
     }
@@ -1528,16 +1698,19 @@ const RoomController = (() => {
       }
 
 
-      // Ask permission after user presses
-      // Accept. This is mobile-safe.
+      // IMPORTANT:
+      // getUserMedia is triggered by
+      // the Accept button click.
 
       localStream =
         await navigator.mediaDevices.getUserMedia({
+
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
             autoGainControl: true
           },
+
           video:
             offer.type === 'video'
         });
@@ -1575,6 +1748,9 @@ const RoomController = (() => {
         )
       );
 
+
+      // Add ICE candidates which arrived
+      // before remote description.
 
       await flushPendingIceCandidates();
 
@@ -1622,10 +1798,10 @@ const RoomController = (() => {
       }
 
 
-      // Try to unlock audio immediately
-      // because Accept is a user gesture.
+      // Accept button is a user gesture,
+      // so try to unlock audio here.
 
-      enableRemoteAudio();
+      await enableRemoteAudio();
 
     } catch (err) {
 
@@ -1634,7 +1810,9 @@ const RoomController = (() => {
         err
       );
 
+
       endWebRTC(false);
+
 
       Toast.error(
         'Could not accept the call.'
@@ -1703,8 +1881,7 @@ const RoomController = (() => {
       await flushPendingIceCandidates();
 
 
-      // Try remote audio after answer.
-      enableRemoteAudio();
+      await enableRemoteAudio();
 
     } catch (err) {
 
@@ -1712,6 +1889,7 @@ const RoomController = (() => {
         'ANSWER ERROR:',
         err
       );
+
 
       Toast.error(
         'Could not establish the call.'
@@ -1775,9 +1953,13 @@ const RoomController = (() => {
       false;
 
 
-    try {
+    // =========================
+    // AUDIO ELEMENT
+    // =========================
 
-      if (els.remoteAudio) {
+    if (els.remoteAudio) {
+
+      try {
 
         els.remoteAudio.muted =
           false;
@@ -1788,27 +1970,40 @@ const RoomController = (() => {
         els.remoteAudio.autoplay =
           true;
 
-        await els.remoteAudio.play();
-
-        success =
+        els.remoteAudio.playsInline =
           true;
+
+
+        if (
+          els.remoteAudio.srcObject
+        ) {
+
+          await els.remoteAudio.play();
+
+          success =
+            true;
+        }
+
+      } catch (err) {
+
+        console.log(
+          'Remote audio failed:',
+          err
+        );
       }
-
-    } catch (err) {
-
-      console.log(
-        'Remote audio play failed:',
-        err
-      );
     }
 
 
-    try {
+    // =========================
+    // VIDEO AUDIO
+    // =========================
 
-      if (
-        els.remoteVideo &&
-        els.remoteVideo.srcObject
-      ) {
+    if (
+      els.remoteVideo &&
+      els.remoteVideo.srcObject
+    ) {
+
+      try {
 
         els.remoteVideo.muted =
           false;
@@ -1816,18 +2011,22 @@ const RoomController = (() => {
         els.remoteVideo.volume =
           1;
 
+        els.remoteVideo.playsInline =
+          true;
+
+
         await els.remoteVideo.play();
 
         success =
           true;
+
+      } catch (err) {
+
+        console.log(
+          'Remote video audio failed:',
+          err
+        );
       }
-
-    } catch (err) {
-
-      console.log(
-        'Remote video audio play failed:',
-        err
-      );
     }
 
 
@@ -1867,7 +2066,7 @@ const RoomController = (() => {
       localStream;
 
 
-    els.localVideo.muted =
+    els.localVideo.autoplay =
       true;
 
 
@@ -1875,7 +2074,7 @@ const RoomController = (() => {
       true;
 
 
-    els.localVideo.autoplay =
+    els.localVideo.muted =
       true;
 
 
@@ -2006,21 +2205,30 @@ const RoomController = (() => {
 
     if (els.remoteAudio) {
 
-      els.remoteAudio.pause();
+      try {
+        els.remoteAudio.pause();
+      } catch (_) {}
 
       els.remoteAudio.srcObject =
         null;
     }
 
 
+    remoteStream =
+      null;
+
+
     pendingOffer =
       null;
+
 
     pendingIceCandidates =
       [];
 
+
     callType =
       null;
+
 
     isCaller =
       false;
@@ -2040,6 +2248,7 @@ const RoomController = (() => {
       countdownInterval
     );
 
+
     clearTimeout(
       typingTimer
     );
@@ -2051,9 +2260,11 @@ const RoomController = (() => {
         code
       );
 
+
       SocketClient.endCall(
         code
       );
+
 
       SocketClient.leaveRoom(
         code
@@ -2090,11 +2301,14 @@ const RoomController = (() => {
     code =
       null;
 
+
     mySocketId =
       null;
 
+
     myName =
       'You';
+
 
     expiresAt =
       null;
