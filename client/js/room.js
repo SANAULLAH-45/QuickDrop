@@ -71,9 +71,9 @@ const RoomController = (() => {
       return;
     }
 
-        bindSocketEvents();
+           bindSocketEvents();
 
-    // Send the text that was entered before the share code was generated
+    // Send pending text
     const pendingTextKey = `qd-pending-text-${code}`;
     const pendingText = sessionStorage.getItem(pendingTextKey);
 
@@ -85,18 +85,20 @@ const RoomController = (() => {
         Toast.error(err.message || 'Message could not be sent.');
       }
     }
-  const pendingFile = window.quickDropPendingFile;
 
-if (pendingFile) {
-  window.quickDropPendingFile = null;
+    // Upload pending file
+    const pendingFile = window.quickDropPendingFile;
 
-  try {
-    await uploadOneFile(pendingFile);
-  } catch (err) {
-    Toast.error(err.message || 'File could not be uploaded.');
+    if (pendingFile) {
+      window.quickDropPendingFile = null;
+
+      try {
+        await uploadOneFile(pendingFile);
+      } catch (err) {
+        Toast.error(err.message || 'File could not be uploaded.');
+      }
+    }
   }
-}
-
   function renderQrCode() {
     els.qrCode.innerHTML = '';
     const joinUrl = `${window.location.origin}/#/room/${code}`;
