@@ -9,20 +9,15 @@ const MAX_MESSAGES_PER_WINDOW = 30;
 
 const messageCounters = new Map();
 
-
 function isMessageRateLimited(socketId) {
-
   const now = Date.now();
 
-  let counter =
-    messageCounters.get(socketId);
+  let counter = messageCounters.get(socketId);
 
   if (
     !counter ||
-    now - counter.windowStart >
-      MESSAGE_WINDOW_MS
+    now - counter.windowStart > MESSAGE_WINDOW_MS
   ) {
-
     counter = {
       count: 0,
       windowStart: now
@@ -36,10 +31,26 @@ function isMessageRateLimited(socketId) {
     counter
   );
 
-  return (
-    counter.count >
-    MAX_MESSAGES_PER_WINDOW
-  );
+  return counter.count > MAX_MESSAGES_PER_WINDOW;
+}
+
+
+// =========================
+// CHECK ROOM ACCESS
+// =========================
+
+function getConnectedRoom(socket, code) {
+  if (!code) return null;
+
+  const room = roomService.getRoom(code);
+
+  if (!room) return null;
+
+  if (!room.users.has(socket.id)) {
+    return null;
+  }
+
+  return room;
 }
 
 
@@ -60,13 +71,12 @@ function registerSocketHandlers(io) {
 
     socket.on(
       'room:join',
-      ({ code, role, name }, ack) => {
+      ({ code, role, name } = {}, ack) => {
 
         const room =
           roomService.getRoom(code);
 
         if (!room) {
-
           return ack && ack({
             ok: false,
             error:
@@ -75,11 +85,29 @@ function registerSocketHandlers(io) {
         }
 
 
+        // If this socket was already connected to another room,
+        // remove it first.
+        if (
+          currentRoomCode &&
+          currentRoomCode !== room.code
+        ) {
+          handleLeave(
+            socket,
+            currentRoomCode,
+            io
+          );
+        }
+
+
+        // Do not count the same socket twice.
+        const alreadyJoined =
+          room.users.has(socket.id);
+
+
         if (
           roomService.roomIsFull(room) &&
-          !room.users.has(socket.id)
+          !alreadyJoined
         ) {
-
           return ack && ack({
             ok: false,
             error:
@@ -94,15 +122,19 @@ function registerSocketHandlers(io) {
           room.code;
 
 
-        roomService.addUser(
-          room,
-          socket.id,
-          role === 'creator'
-            ? 'creator'
-            : 'joiner'
-        );
+        if (!alreadyJoined) {
+
+          roomService.addUser(
+            room,
+            socket.id,
+            role === 'creator'
+              ? 'creator'
+              : 'joiner'
+          );
+        }
 
 
+        // Save display name.
         socket.chatName =
           (name || '')
             .toString()
@@ -124,21 +156,23 @@ function registerSocketHandlers(io) {
         }
 
 
-        // Tell other participant
-        socket.to(room.code).emit(
-          'room:user-joined',
-          {
-            connectedUsers:
-              room.users.size,
+        // Tell the other participant.
+        if (!alreadyJoined) {
 
-            name:
-              socket.chatName
-          }
-        );
+          socket.to(room.code).emit(
+            'room:user-joined',
+            {
+              connectedUsers:
+                room.users.size,
+
+              name:
+                socket.chatName
+            }
+          );
+        }
 
 
         ack && ack({
-
           ok: true,
 
           room:
@@ -162,23 +196,15 @@ function registerSocketHandlers(io) {
 
     socket.on(
       'message:send',
-      ({ code, text }, ack) => {
+      ({ code, text } = {}, ack) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
         if (!room) {
-
-          return ack && ack({
-            ok: false,
-            error:
-              'This room does not exist or has expired.'
-          });
-        }
-
-
-        if (!room.users.has(socket.id)) {
-
           return ack && ack({
             ok: false,
             error:
@@ -192,7 +218,6 @@ function registerSocketHandlers(io) {
             socket.id
           )
         ) {
-
           return ack && ack({
             ok: false,
             error:
@@ -208,7 +233,6 @@ function registerSocketHandlers(io) {
 
 
         if (!trimmed) {
-
           return ack && ack({
             ok: false,
             error:
@@ -218,7 +242,6 @@ function registerSocketHandlers(io) {
 
 
         if (trimmed.length > 5000) {
-
           return ack && ack({
             ok: false,
             error:
@@ -260,17 +283,15 @@ function registerSocketHandlers(io) {
 
     socket.on(
       'typing:start',
-      ({ code }) => {
+      ({ code } = {}) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
-        if (
-          !room ||
-          !room.users.has(socket.id)
-        ) {
-          return;
-        }
+        if (!room) return;
 
 
         socket.to(room.code).emit(
@@ -291,17 +312,15 @@ function registerSocketHandlers(io) {
 
     socket.on(
       'typing:stop',
-      ({ code }) => {
+      ({ code } = {}) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
-        if (
-          !room ||
-          !room.users.has(socket.id)
-        ) {
-          return;
-        }
+        if (!room) return;
 
 
         socket.to(room.code).emit(
@@ -312,20 +331,20 @@ function registerSocketHandlers(io) {
 
 
     // =========================
-    // VOICE CALL
+    // VOICE CALL SIGNAL
     // =========================
 
     socket.on(
       'call:voice',
-      ({ code, signal }) => {
+      ({ code, signal } = {}) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
-        if (
-          !room ||
-          !room.users.has(socket.id)
-        ) {
+        if (!room || !signal) {
           return;
         }
 
@@ -348,20 +367,20 @@ function registerSocketHandlers(io) {
 
 
     // =========================
-    // VIDEO CALL
+    // VIDEO CALL SIGNAL
     // =========================
 
     socket.on(
       'call:video',
-      ({ code, signal }) => {
+      ({ code, signal } = {}) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
-        if (
-          !room ||
-          !room.users.has(socket.id)
-        ) {
+        if (!room || !signal) {
           return;
         }
 
@@ -384,31 +403,29 @@ function registerSocketHandlers(io) {
 
 
     // =========================
-    // WEBRTC ICE CANDIDATE
+    // WEBRTC ICE
     // =========================
 
     socket.on(
       'call:ice',
-      ({ code, candidate }) => {
+      ({ code, candidate } = {}) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
         if (
           !room ||
-          !room.users.has(socket.id)
+          !candidate
         ) {
           return;
         }
 
 
-        if (!candidate) {
-          return;
-        }
-
-
-        // Forward ICE candidate
-        // to the other participant
+        // Forward ICE candidate to
+        // the other participant only.
         socket.to(room.code).emit(
           'call:ice',
           {
@@ -428,21 +445,25 @@ function registerSocketHandlers(io) {
 
     socket.on(
       'call:end',
-      ({ code }) => {
+      ({ code } = {}) => {
 
         const room =
-          roomService.getRoom(code);
+          getConnectedRoom(
+            socket,
+            code
+          );
 
-        if (
-          !room ||
-          !room.users.has(socket.id)
-        ) {
+        if (!room) {
           return;
         }
 
 
         socket.to(room.code).emit(
-          'call:end'
+          'call:end',
+          {
+            from:
+              socket.id
+          }
         );
       }
     );
@@ -454,7 +475,7 @@ function registerSocketHandlers(io) {
 
     socket.on(
       'room:leave',
-      ({ code }) => {
+      ({ code } = {}) => {
 
         handleLeave(
           socket,
@@ -485,6 +506,9 @@ function registerSocketHandlers(io) {
             currentRoomCode,
             io
           );
+
+          currentRoomCode =
+            null;
         }
       }
     );
@@ -511,6 +535,12 @@ function handleLeave(
   }
 
 
+  // Only remove if actually connected.
+  if (!room.users.has(socket.id)) {
+    return;
+  }
+
+
   roomService.removeUser(
     room,
     socket.id
@@ -531,13 +561,19 @@ function handleLeave(
   );
 
 
+  // Stop typing on remote side.
   socket.to(room.code).emit(
     'typing:stop'
   );
 
 
+  // End active call on remote side.
   socket.to(room.code).emit(
-    'call:end'
+    'call:end',
+    {
+      from:
+        socket.id
+    }
   );
 }
 
