@@ -111,6 +111,45 @@ const RoomController = (() => {
 
     els.rejectCallBtn =
       document.getElementById('rejectCallBtn');
+
+
+    // =========================
+    // REMOTE AUDIO
+    // =========================
+
+    els.remoteAudio =
+      document.getElementById('remoteAudio');
+
+    if (!els.remoteAudio) {
+
+      els.remoteAudio =
+        document.createElement('audio');
+
+      els.remoteAudio.id =
+        'remoteAudio';
+
+      els.remoteAudio.autoplay =
+        true;
+
+      els.remoteAudio.playsInline =
+        true;
+
+      els.remoteAudio.controls =
+        false;
+
+      els.remoteAudio.muted =
+        false;
+
+      els.remoteAudio.volume =
+        1;
+
+      els.remoteAudio.style.display =
+        'none';
+
+      document.body.appendChild(
+        els.remoteAudio
+      );
+    }
   }
 
 
@@ -120,7 +159,8 @@ const RoomController = (() => {
 
   async function init(roomCode) {
 
-    code = Utils.normalizeCode(roomCode);
+    code =
+      Utils.normalizeCode(roomCode);
 
     myName =
       sessionStorage.getItem(
@@ -129,18 +169,27 @@ const RoomController = (() => {
 
     cacheEls();
 
-    knownMessageIds = new Set();
+    knownMessageIds =
+      new Set();
 
-    pendingIceCandidates = [];
+    pendingIceCandidates =
+      [];
 
     if (els.roomCodeText) {
-      els.roomCodeText.textContent = code;
+
+      els.roomCodeText.textContent =
+        code;
     }
 
     renderQrCode();
 
 
+    // =========================
+    // COPY CODE
+    // =========================
+
     if (els.copyCodeBtn) {
+
       els.copyCodeBtn.addEventListener(
         'click',
         onCopyCode
@@ -148,7 +197,12 @@ const RoomController = (() => {
     }
 
 
+    // =========================
+    // MESSAGE FORM
+    // =========================
+
     if (els.textForm) {
+
       els.textForm.addEventListener(
         'submit',
         onSendText
@@ -176,7 +230,10 @@ const RoomController = (() => {
 
     } catch (err) {
 
-      Router.navigate('/expired');
+      Router.navigate(
+        '/expired'
+      );
+
       return;
     }
 
@@ -194,19 +251,24 @@ const RoomController = (() => {
           ? 'creator'
           : 'joiner';
 
+
       const joinResponse =
         await SocketClient.joinRoom(
           code,
           role
         );
 
+
       mySocketId =
         joinResponse.socketId;
 
+
       if (joinResponse.name) {
+
         myName =
           joinResponse.name;
       }
+
 
       updateConnectionStatus(
         joinResponse.room.connectedUsers
@@ -219,7 +281,10 @@ const RoomController = (() => {
         'Could not connect to chat.'
       );
 
-      Router.navigate('/expired');
+      Router.navigate(
+        '/expired'
+      );
+
       return;
     }
 
@@ -238,21 +303,28 @@ const RoomController = (() => {
 
   function renderQrCode() {
 
-    if (!els.qrCode) return;
+    if (!els.qrCode) {
+      return;
+    }
 
     els.qrCode.innerHTML = '';
 
     const joinUrl =
       `${window.location.origin}/#/room/${code}`;
 
-    new QRCode(els.qrCode, {
-      text: joinUrl,
-      width: 148,
-      height: 148,
-      colorDark: '#0C0F14',
-      colorLight: '#ffffff',
-      correctLevel: QRCode.CorrectLevel.M
-    });
+
+    new QRCode(
+      els.qrCode,
+      {
+        text: joinUrl,
+        width: 148,
+        height: 148,
+        colorDark: '#0C0F14',
+        colorLight: '#ffffff',
+        correctLevel:
+          QRCode.CorrectLevel.M
+      }
+    );
   }
 
 
@@ -266,9 +338,16 @@ const RoomController = (() => {
       .then((ok) => {
 
         if (ok) {
-          Toast.success('Chat code copied');
+
+          Toast.success(
+            'Chat code copied'
+          );
+
         } else {
-          Toast.error('Could not copy code');
+
+          Toast.error(
+            'Could not copy code'
+          );
         }
 
       });
@@ -297,13 +376,18 @@ const RoomController = (() => {
 
   function updateCountdownDisplay() {
 
-    if (!expiresAt || !els.timerText) {
+    if (
+      !expiresAt ||
+      !els.timerText
+    ) {
       return;
     }
+
 
     const remaining =
       new Date(expiresAt).getTime()
       - Date.now();
+
 
     if (remaining <= 0) {
 
@@ -312,15 +396,18 @@ const RoomController = (() => {
       );
 
       endWebRTC(false);
+
       onRoomExpired();
 
       return;
     }
 
+
     els.timerText.textContent =
       Utils.formatCountdown(
         remaining
       );
+
 
     els.timerText.classList.toggle(
       'warn',
@@ -329,6 +416,7 @@ const RoomController = (() => {
       remaining >=
         60 * 1000
     );
+
 
     els.timerText.classList.toggle(
       'danger',
@@ -367,13 +455,16 @@ const RoomController = (() => {
       return;
     }
 
+
     const otherPresent =
       connectedUsers >= 2;
+
 
     els.connectionDot.classList.toggle(
       'online',
       otherPresent
     );
+
 
     els.connectionText.textContent =
       otherPresent
@@ -392,7 +483,10 @@ const RoomController = (() => {
       SocketClient.get();
 
 
-    // Someone joined
+    // =========================
+    // USER JOINED
+    // =========================
+
     socket.on(
       'room:user-joined',
       ({ connectedUsers, name }) => {
@@ -408,7 +502,10 @@ const RoomController = (() => {
     );
 
 
-    // Someone left
+    // =========================
+    // USER LEFT
+    // =========================
+
     socket.on(
       'room:user-left',
       ({ connectedUsers }) => {
@@ -417,16 +514,23 @@ const RoomController = (() => {
           connectedUsers
         );
 
+
         if (els.typingStatus) {
-          els.typingStatus.textContent = '';
+
+          els.typingStatus.textContent =
+            '';
         }
+
 
         endWebRTC(false);
       }
     );
 
 
-    // Message
+    // =========================
+    // MESSAGE
+    // =========================
+
     socket.on(
       'message:receive',
       (message) => {
@@ -439,7 +543,7 @@ const RoomController = (() => {
 
 
     // =========================
-    // TYPING
+    // TYPING START
     // =========================
 
     socket.on(
@@ -455,12 +559,18 @@ const RoomController = (() => {
     );
 
 
+    // =========================
+    // TYPING STOP
+    // =========================
+
     socket.on(
       'typing:stop',
       () => {
 
         if (els.typingStatus) {
-          els.typingStatus.textContent = '';
+
+          els.typingStatus.textContent =
+            '';
         }
       }
     );
@@ -520,6 +630,7 @@ const RoomController = (() => {
           return;
         }
 
+
         if (
           !peerConnection ||
           !peerConnection.remoteDescription
@@ -532,10 +643,13 @@ const RoomController = (() => {
           return;
         }
 
+
         try {
 
           await peerConnection.addIceCandidate(
-            new RTCIceCandidate(candidate)
+            new RTCIceCandidate(
+              candidate
+            )
           );
 
         } catch (err) {
@@ -567,6 +681,24 @@ const RoomController = (() => {
 
 
     // =========================
+    // ROOM EXPIRED
+    // =========================
+
+    socket.on(
+      'room:expired',
+      ({ code: expiredCode }) => {
+
+        if (
+          expiredCode === code
+        ) {
+
+          onRoomExpired();
+        }
+      }
+    );
+
+
+    // =========================
     // RECONNECT
     // =========================
 
@@ -583,18 +715,22 @@ const RoomController = (() => {
               ? 'creator'
               : 'joiner';
 
+
           const joinResponse =
             await SocketClient.joinRoom(
               code,
               role
             );
 
+
           mySocketId =
             joinResponse.socketId;
+
 
           updateConnectionStatus(
             joinResponse.room.connectedUsers
           );
+
 
           Toast.success(
             'Reconnected ❤️'
@@ -654,25 +790,31 @@ const RoomController = (() => {
 
     e.preventDefault();
 
+
     if (!els.textInput) {
       return;
     }
 
+
     const text =
       els.textInput.value.trim();
+
 
     if (!text) {
       return;
     }
+
 
     const btn =
       document.getElementById(
         'sendTextBtn'
       );
 
+
     if (btn) {
       btn.disabled = true;
     }
+
 
     try {
 
@@ -680,12 +822,15 @@ const RoomController = (() => {
         code
       );
 
+
       await SocketClient.sendMessage(
         code,
         text
       );
 
-      els.textInput.value = '';
+
+      els.textInput.value =
+        '';
 
     } catch (err) {
 
@@ -717,7 +862,10 @@ const RoomController = (() => {
       return;
     }
 
-    els.messageList.innerHTML = '';
+
+    els.messageList.innerHTML =
+      '';
+
 
     if (
       !messages ||
@@ -733,6 +881,7 @@ const RoomController = (() => {
 
       return;
     }
+
 
     messages.forEach(
       appendMessage
@@ -755,6 +904,7 @@ const RoomController = (() => {
       return;
     }
 
+
     if (
       knownMessageIds.has(
         message.id
@@ -762,6 +912,7 @@ const RoomController = (() => {
     ) {
       return;
     }
+
 
     knownMessageIds.add(
       message.id
@@ -790,7 +941,9 @@ const RoomController = (() => {
 
     li.className =
       'message-item' +
-      (isMine ? ' mine' : '');
+      (isMine
+        ? ' mine'
+        : '');
 
 
     li.innerHTML = `
@@ -828,17 +981,21 @@ const RoomController = (() => {
         '.message-name'
       );
 
+
     nameElement.textContent =
       message.senderName ||
-      (isMine
-        ? myName
-        : 'Your person');
+      (
+        isMine
+          ? myName
+          : 'Your person'
+      );
 
 
     const textElement =
       li.querySelector(
         '.message-text'
       );
+
 
     textElement.textContent =
       message.text;
@@ -849,6 +1006,7 @@ const RoomController = (() => {
         '.copy-text-btn'
       );
 
+
     copyButton.addEventListener(
       'click',
       () => {
@@ -858,6 +1016,7 @@ const RoomController = (() => {
         ).then((ok) => {
 
           if (ok) {
+
             Toast.success(
               'Message copied'
             );
@@ -871,6 +1030,7 @@ const RoomController = (() => {
     els.messageList.appendChild(
       li
     );
+
 
     els.messageList.scrollTop =
       els.messageList.scrollHeight;
@@ -896,9 +1056,11 @@ const RoomController = (() => {
           code
         );
 
+
         clearTimeout(
           typingTimer
         );
+
 
         typingTimer =
           setTimeout(
@@ -1008,6 +1170,19 @@ const RoomController = (() => {
     }
 
 
+    if (
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices.getUserMedia
+    ) {
+
+      Toast.error(
+        'Your browser does not support microphone/camera access.'
+      );
+
+      return;
+    }
+
+
     callType =
       type;
 
@@ -1017,24 +1192,30 @@ const RoomController = (() => {
 
     try {
 
-      await createPeerConnection();
-
-
+      // Get microphone/camera FIRST
       localStream =
         await navigator.mediaDevices.getUserMedia({
-          audio: true,
-          video: type === 'video'
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video:
+            type === 'video'
+              ? {
+                  width: {
+                    ideal: 1280
+                  },
+                  height: {
+                    ideal: 720
+                  },
+                  facingMode: 'user'
+                }
+              : false
         });
 
 
-      attachLocalStream();
-
-
-      showCallPanel(
-        type === 'video'
-          ? 'Video Call ❤️'
-          : 'Voice Call ❤️'
-      );
+      await createPeerConnection();
 
 
       localStream.getTracks().forEach(
@@ -1048,8 +1229,22 @@ const RoomController = (() => {
       );
 
 
+      attachLocalStream();
+
+
+      showCallPanel(
+        type === 'video'
+          ? 'Video Call ❤️'
+          : 'Voice Call ❤️'
+      );
+
+
       const offer =
-        await peerConnection.createOffer();
+        await peerConnection.createOffer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo:
+            type === 'video'
+        });
 
 
       await peerConnection.setLocalDescription(
@@ -1064,11 +1259,9 @@ const RoomController = (() => {
       };
 
 
-      // IMPORTANT:
-      // Voice -> voice event
-      // Video -> video event
-
-      if (type === 'video') {
+      if (
+        type === 'video'
+      ) {
 
         SocketClient.sendVideoCallSignal(
           code,
@@ -1095,7 +1288,9 @@ const RoomController = (() => {
         err
       );
 
+
       endWebRTC(false);
+
 
       Toast.error(
         'Could not start the call. Check microphone/camera permission.'
@@ -1116,6 +1311,10 @@ const RoomController = (() => {
       );
 
 
+    // =========================
+    // ICE
+    // =========================
+
     peerConnection.onicecandidate =
       (event) => {
 
@@ -1131,17 +1330,37 @@ const RoomController = (() => {
       };
 
 
-    peerConnection.ontrack =
-      (event) => {
+    // =========================
+    // REMOTE TRACK
+    // =========================
 
-        if (
-          els.remoteVideo &&
+    peerConnection.ontrack =
+      async (event) => {
+
+        console.log(
+          'REMOTE TRACK:',
+          event.track.kind
+        );
+
+
+        const remoteStream =
           event.streams &&
-          event.streams[0]
-        ) {
+          event.streams[0];
+
+
+        if (!remoteStream) {
+          return;
+        }
+
+
+        // =========================
+        // VIDEO + AUDIO
+        // =========================
+
+        if (els.remoteVideo) {
 
           els.remoteVideo.srcObject =
-            event.streams[0];
+            remoteStream;
 
           els.remoteVideo.muted =
             false;
@@ -1149,11 +1368,107 @@ const RoomController = (() => {
           els.remoteVideo.volume =
             1;
 
-          els.remoteVideo.play()
-            .catch(() => {});
+          els.remoteVideo.autoplay =
+            true;
+
+          els.remoteVideo.playsInline =
+            true;
+
+
+          try {
+
+            await els.remoteVideo.play();
+
+          } catch (err) {
+
+            console.warn(
+              'Remote video autoplay blocked:',
+              err
+            );
+          }
         }
+
+
+        // =========================
+        // AUDIO FALLBACK
+        // =========================
+
+        if (els.remoteAudio) {
+
+          els.remoteAudio.srcObject =
+            remoteStream;
+
+          els.remoteAudio.muted =
+            false;
+
+          els.remoteAudio.volume =
+            1;
+
+          els.remoteAudio.autoplay =
+            true;
+
+          els.remoteAudio.playsInline =
+            true;
+
+
+          try {
+
+            await els.remoteAudio.play();
+
+            console.log(
+              'REMOTE AUDIO PLAYING'
+            );
+
+          } catch (err) {
+
+            console.warn(
+              'Remote audio autoplay blocked:',
+              err
+            );
+          }
+        }
+
+
+        // Make sure every remote audio track is enabled
+
+        remoteStream
+          .getAudioTracks()
+          .forEach(
+            (track) => {
+
+              track.enabled =
+                true;
+
+              console.log(
+                'Remote audio track:',
+                track.readyState,
+                track.enabled
+              );
+            }
+          );
+
+
+        remoteStream
+          .getVideoTracks()
+          .forEach(
+            (track) => {
+
+              track.enabled =
+                true;
+
+              console.log(
+                'Remote video track:',
+                track.readyState,
+                track.enabled
+              );
+            }
+          );
       };
 
+
+    // =========================
+    // CONNECTION STATE
+    // =========================
 
     peerConnection.onconnectionstatechange =
       () => {
@@ -1162,8 +1477,10 @@ const RoomController = (() => {
           return;
         }
 
+
         const state =
           peerConnection.connectionState;
+
 
         console.log(
           'WebRTC connection state:',
@@ -1182,7 +1499,18 @@ const RoomController = (() => {
 
 
         if (
-          state === 'failed' ||
+          state === 'failed'
+        ) {
+
+          Toast.error(
+            'Connection failed. Please try again.'
+          );
+
+          endWebRTC(false);
+        }
+
+
+        if (
           state === 'closed'
         ) {
 
@@ -1191,6 +1519,10 @@ const RoomController = (() => {
       };
 
 
+    // =========================
+    // ICE STATE
+    // =========================
+
     peerConnection.oniceconnectionstatechange =
       () => {
 
@@ -1198,9 +1530,29 @@ const RoomController = (() => {
           return;
         }
 
+
         console.log(
           'ICE state:',
           peerConnection.iceConnectionState
+        );
+      };
+
+
+    // =========================
+    // ICE GATHERING
+    // =========================
+
+    peerConnection.onicegatheringstatechange =
+      () => {
+
+        if (!peerConnection) {
+          return;
+        }
+
+
+        console.log(
+          'ICE gathering:',
+          peerConnection.iceGatheringState
         );
       };
   }
@@ -1234,6 +1586,7 @@ const RoomController = (() => {
 
 
     pendingOffer = {
+
       type:
         signal.callType ||
         type,
@@ -1287,11 +1640,14 @@ const RoomController = (() => {
     const offer =
       pendingOffer;
 
+
     pendingOffer =
       null;
 
+
     isCaller =
       false;
+
 
     callType =
       offer.type;
@@ -1300,30 +1656,37 @@ const RoomController = (() => {
     try {
 
       if (els.incomingCallBox) {
+
         els.incomingCallBox.hidden =
           true;
       }
 
 
-      await createPeerConnection();
-
+      // Get microphone/camera FIRST
 
       localStream =
         await navigator.mediaDevices.getUserMedia({
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
           video:
             offer.type === 'video'
+              ? {
+                  width: {
+                    ideal: 1280
+                  },
+                  height: {
+                    ideal: 720
+                  },
+                  facingMode: 'user'
+                }
+              : false
         });
 
 
-      attachLocalStream();
-
-
-      showCallPanel(
-        offer.type === 'video'
-          ? 'Video Call ❤️'
-          : 'Voice Call ❤️'
-      );
+      await createPeerConnection();
 
 
       localStream.getTracks().forEach(
@@ -1337,6 +1700,16 @@ const RoomController = (() => {
       );
 
 
+      attachLocalStream();
+
+
+      showCallPanel(
+        offer.type === 'video'
+          ? 'Video Call ❤️'
+          : 'Voice Call ❤️'
+      );
+
+
       await peerConnection.setRemoteDescription(
         new RTCSessionDescription(
           offer.sdp
@@ -1344,14 +1717,15 @@ const RoomController = (() => {
       );
 
 
-      // Add ICE candidates that arrived
-      // before remote description
-
       await flushPendingIceCandidates();
 
 
       const answer =
-        await peerConnection.createAnswer();
+        await peerConnection.createAnswer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo:
+            offer.type === 'video'
+        });
 
 
       await peerConnection.setLocalDescription(
@@ -1360,9 +1734,14 @@ const RoomController = (() => {
 
 
       const signal = {
+
         type: 'answer',
-        callType: offer.type,
-        sdp: answer
+
+        callType:
+          offer.type,
+
+        sdp:
+          answer
       };
 
 
@@ -1390,10 +1769,12 @@ const RoomController = (() => {
         err
       );
 
+
       endWebRTC(false);
 
+
       Toast.error(
-        'Could not accept the call.'
+        'Could not accept the call. Check microphone/camera permission.'
       );
     }
   }
@@ -1408,17 +1789,21 @@ const RoomController = (() => {
     pendingOffer =
       null;
 
+
     if (els.incomingCallBox) {
 
       els.incomingCallBox.hidden =
         true;
     }
 
+
     SocketClient.endCall(
       code
     );
 
+
     hideCallPanel();
+
 
     Toast.info(
       'Call declined.'
@@ -1461,6 +1846,7 @@ const RoomController = (() => {
         err
       );
 
+
       Toast.error(
         'Could not establish the call.'
       );
@@ -1485,6 +1871,7 @@ const RoomController = (() => {
     const candidates =
       pendingIceCandidates;
 
+
     pendingIceCandidates =
       [];
 
@@ -1496,7 +1883,9 @@ const RoomController = (() => {
       try {
 
         await peerConnection.addIceCandidate(
-          new RTCIceCandidate(candidate)
+          new RTCIceCandidate(
+            candidate
+          )
         );
 
       } catch (err) {
@@ -1517,22 +1906,32 @@ const RoomController = (() => {
   function attachLocalStream() {
 
     if (
-      els.localVideo &&
-      localStream
+      !els.localVideo ||
+      !localStream
     ) {
-
-      els.localVideo.srcObject =
-        localStream;
-
-      els.localVideo.muted =
-        true;
-
-      els.localVideo.playsInline =
-        true;
-
-      els.localVideo.play()
-        .catch(() => {});
+      return;
     }
+
+
+    els.localVideo.srcObject =
+      localStream;
+
+
+    els.localVideo.muted =
+      true;
+
+
+    els.localVideo.autoplay =
+      true;
+
+
+    els.localVideo.playsInline =
+      true;
+
+
+    els.localVideo
+      .play()
+      .catch(() => {});
   }
 
 
@@ -1549,6 +1948,7 @@ const RoomController = (() => {
       els.callPanel.hidden =
         false;
     }
+
 
     if (els.callTitle) {
 
@@ -1569,6 +1969,7 @@ const RoomController = (() => {
       els.callPanel.hidden =
         true;
     }
+
 
     if (els.incomingCallBox) {
 
@@ -1599,11 +2000,13 @@ const RoomController = (() => {
 
     if (localStream) {
 
-      localStream.getTracks().forEach(
-        (track) => {
-          track.stop();
-        }
-      );
+      localStream
+        .getTracks()
+        .forEach(
+          (track) => {
+            track.stop();
+          }
+        );
 
       localStream =
         null;
@@ -1619,6 +2022,9 @@ const RoomController = (() => {
         null;
 
       peerConnection.onconnectionstatechange =
+        null;
+
+      peerConnection.oniceconnectionstatechange =
         null;
 
       peerConnection.close();
@@ -1642,14 +2048,26 @@ const RoomController = (() => {
     }
 
 
+    if (els.remoteAudio) {
+
+      els.remoteAudio.pause();
+
+      els.remoteAudio.srcObject =
+        null;
+    }
+
+
     pendingOffer =
       null;
+
 
     pendingIceCandidates =
       [];
 
+
     callType =
       null;
+
 
     isCaller =
       false;
