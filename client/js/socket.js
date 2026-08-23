@@ -69,7 +69,6 @@ const SocketClient = (() => {
 
         }
       );
-
     });
   }
 
@@ -124,7 +123,6 @@ const SocketClient = (() => {
 
         }
       );
-
     });
   }
 
@@ -194,6 +192,24 @@ const SocketClient = (() => {
 
 
   // =========================
+  // ICE CANDIDATE
+  // =========================
+  function sendIceCandidate(
+    code,
+    candidate
+  ) {
+
+    get().emit(
+      'call:ice',
+      {
+        code,
+        candidate
+      }
+    );
+  }
+
+
+  // =========================
   // END CALL
   // =========================
   function endCall(code) {
@@ -223,8 +239,11 @@ const SocketClient = (() => {
 
     sendVoiceCallSignal,
     sendVideoCallSignal,
-    endCall
 
+    // WebRTC ICE
+    sendIceCandidate,
+
+    endCall
   };
 
 })();
