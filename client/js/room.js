@@ -85,7 +85,17 @@ const RoomController = (() => {
         Toast.error(err.message || 'Message could not be sent.');
       }
     }
+  const pendingFile = window.quickDropPendingFile;
+
+if (pendingFile) {
+  window.quickDropPendingFile = null;
+
+  try {
+    await uploadOneFile(pendingFile);
+  } catch (err) {
+    Toast.error(err.message || 'File could not be uploaded.');
   }
+}
 
   function renderQrCode() {
     els.qrCode.innerHTML = '';
