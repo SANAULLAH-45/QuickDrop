@@ -1,370 +1,823 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>JustUs ❤️ — Private Chat. No Login.</title>
-<meta name="description" content="JustUs is a private temporary chat. No phone number, no account, no WhatsApp." />
-<link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>JustUs ❤️ — Private Chat. No Login.</title>
+
+  <meta
+    name="description"
+    content="JustUs is a private temporary chat. No phone number, no account, no WhatsApp."
+  />
+
+  <link
+    rel="icon"
+    href="assets/favicon.svg"
+    type="image/svg+xml"
+  />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+
+  <link
+    href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap"
+    rel="stylesheet"
+  >
+
+  <link rel="stylesheet" href="css/style.css" />
 </head>
+
 <body>
 
-  <!-- ============ TOP BAR ============ -->
+  <!-- =========================
+       TOP BAR
+  ========================== -->
+
   <header class="topbar">
-    <a href="#/" class="brand" data-nav="home">
+
+    <a
+      href="#/"
+      class="brand"
+      data-nav="home"
+    >
       <span class="brand-mark">❤️</span>
-<span class="brand-name">JustUs</span>
+      <span class="brand-name">JustUs</span>
     </a>
-    <button id="themeToggle" class="icon-btn" aria-label="Toggle dark mode" title="Toggle dark mode">
-      <svg class="icon icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
-      <svg class="icon icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+
+    <button
+      id="themeToggle"
+      class="icon-btn"
+      aria-label="Toggle dark mode"
+      title="Toggle dark mode"
+      type="button"
+    >
+
+      <svg
+        class="icon icon-sun"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2"/>
+        <path d="M4.93 4.93l1.41 1.41"/>
+        <path d="M17.66 17.66l1.41 1.41"/>
+        <path d="M2 12h2M20 12h2"/>
+        <path d="M4.93 19.07l1.41-1.41"/>
+        <path d="M17.66 6.34l1.41-1.41"/>
+      </svg>
+
+      <svg
+        class="icon icon-moon"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+
     </button>
+
   </header>
 
-  <!-- ============ TOAST CONTAINER ============ -->
-  <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
-  <!-- ============ APP ROOT (views are swapped in here) ============ -->
-  <main id="app" class="app-root"></main>
+  <!-- =========================
+       TOAST
+  ========================== -->
 
-  <!-- ============ TEMPLATES ============ -->
+  <div
+    id="toastContainer"
+    class="toast-container"
+    aria-live="polite"
+  ></div>
+
+
+  <!-- =========================
+       APP ROOT
+  ========================== -->
+
+  <main
+    id="app"
+    class="app-root"
+  ></main>
+
+
+  <!-- =====================================================
+       HOME
+  ====================================================== -->
 
   <template id="tpl-home">
-  <section class="view view-home">
-    <div class="hero">
 
-      <span class="pill">❤️ No phone number • No account</span>
+    <section class="view view-home">
 
-      <h1>
-        Just you two.<br/>
-        <span>JustUs ❤️</span>
-      </h1>
+      <div class="hero">
 
-      <p class="subtitle">
-        Start a private conversation without a phone number,
-        WhatsApp or app. Just share a simple chat code.
-      </p>
+        <span class="pill">
+          ❤️ No phone number • No account
+        </span>
 
-      <div class="home-actions">
+        <h1>
+          Just you two.<br/>
+          <span>JustUs ❤️</span>
+        </h1>
 
-        <button class="btn btn-primary btn-lg" data-action="create-share">
-          ❤️ Start a Chat
-        </button>
+        <p class="subtitle">
+          Start a private conversation without a phone number,
+          WhatsApp or app. Just share a simple chat code.
+        </p>
 
-        <button class="btn btn-secondary btn-lg" data-action="join-share">
-          💕 Join Chat
-        </button>
 
-      </div>
+        <div class="home-actions">
 
-      <form class="code-quickjoin" id="quickJoinForm" autocomplete="off">
+          <button
+            class="btn btn-primary btn-lg"
+            data-action="create-share"
+            type="button"
+          >
+            ❤️ Start a Chat
+          </button>
 
-        <input
-          id="quickJoinInput"
-          type="text"
-          inputmode="text"
-          maxlength="6"
-          placeholder="Enter chat code"
-          aria-label="Enter chat code"
-        />
+          <button
+            class="btn btn-secondary btn-lg"
+            data-action="join-share"
+            type="button"
+          >
+            💕 Join Chat
+          </button>
 
-        <button type="submit" class="btn btn-ghost">
-          Join
-        </button>
+        </div>
 
-      </form>
 
-    </div>
-
-    <div class="features">
-
-      <div class="feature-card">
-        <div class="feature-icon">❤️</div>
-        <h3>Private</h3>
-        <p>No phone number, no account and no login.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">💬</div>
-        <h3>Real-time Chat</h3>
-        <p>Messages appear instantly between both people.</p>
-      </div>
-
-      <div class="feature-card">
-        <div class="feature-icon">⏳</div>
-        <h3>Temporary</h3>
-        <p>Your conversation disappears automatically.</p>
-      </div>
-
-    </div>
-
-  </section>
-</template>
-
-<template id="tpl-create">
-  <section class="view view-create">
-
-    <div class="center-card create-share-card">
-
-      <span class="pill">JustUs ❤️</span>
-
-      <h2>Start a private chat</h2>
-
-      <p class="muted">
-        No phone number. No account. Just you two.
-      </p>
-
-      <form id="startChatForm">
-
-        <label for="chatName">
-          Your name
-        </label>
-
-        <input
-          id="chatName"
-          type="text"
-          maxlength="30"
-          placeholder="Enter your name"
+        <form
+          class="code-quickjoin"
+          id="quickJoinForm"
           autocomplete="off"
-          required
-        />
-
-        <button
-          id="startChatBtn"
-          class="btn btn-primary btn-lg"
-          type="submit"
         >
-          Start Chat ❤️
-        </button>
 
-      </form>
+          <input
+            id="quickJoinInput"
+            type="text"
+            inputmode="text"
+            maxlength="6"
+            placeholder="Enter chat code"
+            aria-label="Enter chat code"
+          />
 
-      <div id="shareError" class="form-error" hidden></div>
+          <button
+            type="submit"
+            class="btn btn-ghost"
+          >
+            Join
+          </button>
 
-    </div>
+        </form>
 
-  </section>
-</template>
-  <template id="tpl-join">
-  <section class="view view-join">
-    <div class="center-card">
-
-      <div class="big-icon">💕</div>
-
-      <h2>Join your chat ❤️</h2>
-
-      <p class="muted">
-        Enter your name and the 6-character chat code.
-      </p>
-
-      <form id="joinForm" class="join-form" autocomplete="off">
-
-        <label for="joinName">
-          Your name
-        </label>
-
-        <input
-          id="joinName"
-          type="text"
-          maxlength="30"
-          placeholder="Enter your name"
-          autocomplete="off"
-          required
-        />
-
-        <label for="joinCodeInput">
-          Chat code
-        </label>
-
-        <input
-           id="joinCodeInput"
-          class="code-input"
-          type="text"
-          inputmode="text"
-          maxlength="6"
-          placeholder="ABC123"
-          aria-label="Chat code"
-          autocomplete="off"
-          required
-        />
-
-        <button
-          type="submit"
-          class="btn btn-primary btn-lg"
-          id="joinSubmitBtn"
-        >
-          Join Chat ❤️
-        </button>
-
-      </form>
-
-      <div id="joinError" class="form-error" hidden></div>
-
-    </div>
-  </section>
-</template>
-  
-  <template id="tpl-expired">
-  <section class="view view-expired">
-
-    <div class="center-card">
-
-      <div class="big-icon">⌛</div>
-
-      <h2>This chat has expired ❤️</h2>
-
-      <p class="muted">
-        For your privacy, this temporary conversation has been deleted.
-      </p>
-
-      <button
-        class="btn btn-primary"
-        data-action="create-share"
-      >
-        Start a new chat ❤️
-      </button>
-
-      <button
-        class="btn btn-ghost"
-        data-action="join-share"
-      >
-        Join another chat
-      </button>
-
-    </div>
-
-  </section>
-</template>
-  
-  <template id="tpl-404">
-    <section class="view view-404">
-      <div class="center-card">
-        <div class="big-icon">🤔</div>
-        <h2>Page not found</h2>
-        <p class="muted">That page doesn't exist. Let's get you back home.</p>
-        <button class="btn btn-primary" data-action="home">Go Home</button>
       </div>
+
+
+      <div class="features">
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            ❤️
+          </div>
+
+          <h3>
+            Private
+          </h3>
+
+          <p>
+            No phone number, no account and no login.
+          </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            💬
+          </div>
+
+          <h3>
+            Real-time Chat
+          </h3>
+
+          <p>
+            Messages appear instantly between both people.
+          </p>
+
+        </div>
+
+
+        <div class="feature-card">
+
+          <div class="feature-icon">
+            ⏳
+          </div>
+
+          <h3>
+            Temporary
+          </h3>
+
+          <p>
+            Your conversation disappears automatically.
+          </p>
+
+        </div>
+
+      </div>
+
     </section>
+
   </template>
+
+
+  <!-- =====================================================
+       CREATE CHAT
+  ====================================================== -->
+
+  <template id="tpl-create">
+
+    <section class="view view-create">
+
+      <div class="center-card create-share-card">
+
+        <span class="pill">
+          JustUs ❤️
+        </span>
+
+        <h2>
+          Start a private chat
+        </h2>
+
+        <p class="muted">
+          No phone number. No account. Just you two.
+        </p>
+
+
+        <form id="startChatForm">
+
+          <label for="chatName">
+            Your name
+          </label>
+
+          <input
+            id="chatName"
+            type="text"
+            maxlength="30"
+            placeholder="Enter your name"
+            autocomplete="off"
+            required
+          />
+
+
+          <button
+            id="startChatBtn"
+            class="btn btn-primary btn-lg"
+            type="submit"
+          >
+            Start Chat ❤️
+          </button>
+
+        </form>
+
+
+        <div
+          id="shareError"
+          class="form-error"
+          hidden
+        ></div>
+
+      </div>
+
+    </section>
+
+  </template>
+
+
+  <!-- =====================================================
+       JOIN CHAT
+  ====================================================== -->
+
+  <template id="tpl-join">
+
+    <section class="view view-join">
+
+      <div class="center-card">
+
+        <div class="big-icon">
+          💕
+        </div>
+
+        <h2>
+          Join your chat ❤️
+        </h2>
+
+        <p class="muted">
+          Enter your name and the 6-character chat code.
+        </p>
+
+
+        <form
+          id="joinForm"
+          class="join-form"
+          autocomplete="off"
+        >
+
+          <label for="joinName">
+            Your name
+          </label>
+
+          <input
+            id="joinName"
+            type="text"
+            maxlength="30"
+            placeholder="Enter your name"
+            autocomplete="off"
+            required
+          />
+
+
+          <label for="joinCodeInput">
+            Chat code
+          </label>
+
+          <input
+            id="joinCodeInput"
+            class="code-input"
+            type="text"
+            inputmode="text"
+            maxlength="6"
+            placeholder="ABC123"
+            aria-label="Chat code"
+            autocomplete="off"
+            required
+          />
+
+
+          <button
+            type="submit"
+            class="btn btn-primary btn-lg"
+            id="joinSubmitBtn"
+          >
+            Join Chat ❤️
+          </button>
+
+        </form>
+
+
+        <div
+          id="joinError"
+          class="form-error"
+          hidden
+        ></div>
+
+      </div>
+
+    </section>
+
+  </template>
+
+
+  <!-- =====================================================
+       EXPIRED
+  ====================================================== -->
+
+  <template id="tpl-expired">
+
+    <section class="view view-expired">
+
+      <div class="center-card">
+
+        <div class="big-icon">
+          ⌛
+        </div>
+
+        <h2>
+          This chat has expired ❤️
+        </h2>
+
+        <p class="muted">
+          For your privacy, this temporary conversation has been deleted.
+        </p>
+
+
+        <button
+          class="btn btn-primary"
+          data-action="create-share"
+          type="button"
+        >
+          Start a new chat ❤️
+        </button>
+
+
+        <button
+          class="btn btn-ghost"
+          data-action="join-share"
+          type="button"
+        >
+          Join another chat
+        </button>
+
+      </div>
+
+    </section>
+
+  </template>
+
+
+  <!-- =====================================================
+       404
+  ====================================================== -->
+
+  <template id="tpl-404">
+
+    <section class="view view-404">
+
+      <div class="center-card">
+
+        <div class="big-icon">
+          🤔
+        </div>
+
+        <h2>
+          Page not found
+        </h2>
+
+        <p class="muted">
+          That page doesn't exist. Let's get you back home.
+        </p>
+
+        <button
+          class="btn btn-primary"
+          data-action="home"
+          type="button"
+        >
+          Go Home
+        </button>
+
+      </div>
+
+    </section>
+
+  </template>
+
+
+  <!-- =====================================================
+       CHAT ROOM
+  ====================================================== -->
 
   <template id="tpl-room">
+
     <section class="view view-room">
+
+
+      <!-- =========================
+           ROOM HEADER
+      ========================== -->
+
       <div class="room-header">
+
         <div class="room-code-block">
-         <span class="label">Chat Code</span>
+
+          <span class="label">
+            Chat Code
+          </span>
+
           <div class="code-display">
-            <span id="roomCodeText" class="code-text"></span>
-            <button class="icon-btn" id="copyCodeBtn" title="Copy code" aria-label="Copy code">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+
+            <span
+              id="roomCodeText"
+              class="code-text"
+            ></span>
+
+            <button
+              class="icon-btn"
+              id="copyCodeBtn"
+              title="Copy code"
+              aria-label="Copy code"
+              type="button"
+            >
+
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect
+                  x="9"
+                  y="9"
+                  width="13"
+                  height="13"
+                  rx="2"
+                />
+
+                <path
+                  d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                />
+
+              </svg>
+
             </button>
+
           </div>
+
         </div>
+
 
         <div class="room-status">
-          <span class="status-dot" id="connectionDot"></span>
-         <span id="connectionText">Waiting for your person… ❤️</span>
+
+          <span
+            class="status-dot"
+            id="connectionDot"
+          ></span>
+
+          <span id="connectionText">
+            Waiting for your person… ❤️
+          </span>
+
         </div>
+
 
         <div class="room-timer">
-          <span class="label">Expires in</span>
-          <span id="timerText" class="timer-text">60:00</span>
+
+          <span class="label">
+            Expires in
+          </span>
+
+          <span
+            id="timerText"
+            class="timer-text"
+          >
+            60:00
+          </span>
+
         </div>
+
       </div>
+
+
+      <!-- =========================
+           ROOM BODY
+      ========================== -->
 
       <div class="room-body">
-        <div class="qr-panel" id="qrPanel">
-          <span class="label">Scan to join ❤️</span>
-          <div id="qrCode" class="qr-code"></div>
+
+
+        <!-- QR -->
+        <div
+          class="qr-panel"
+          id="qrPanel"
+        >
+
+          <span class="label">
+            Scan to join ❤️
+          </span>
+
+          <div
+            id="qrCode"
+            class="qr-code"
+          ></div>
+
         </div>
 
-<div class="room-main">
 
-  <div class="panel chat-panel">
+        <!-- MAIN -->
+        <div class="room-main">
 
-    <div class="panel-header">
 
-      <div>
-        <h3>💬 JustUs Chat</h3>
-        <span class="muted small" id="typingStatus"></span>
-      </div>
+          <!-- =========================
+               CHAT PANEL
+          ========================== -->
 
-      <div class="call-actions">
+          <div class="panel chat-panel">
 
-        <button
-          class="icon-btn"
-          id="voiceCallBtn"
-          title="Voice Call"
-          aria-label="Voice Call"
-          type="button"
-        >
-          📞
-        </button>
 
-        <button
-          class="icon-btn"
-          id="videoCallBtn"
-          title="Video Call"
-          aria-label="Video Call"
-          type="button"
-        >
-          📹
-        </button>
+            <div class="panel-header">
 
-      </div>
 
-    </div>
+              <div>
 
-    <ul id="messageList" class="message-list">
-      <li
-        class="empty-state"
-        id="messageEmptyState"
-      >
-        No messages yet. Say hello ❤️
-      </li>
-    </ul>
+                <h3>
+                  💬 JustUs Chat
+                </h3>
 
-    <form id="textForm" class="text-form">
+                <span
+                  class="muted small"
+                  id="typingStatus"
+                ></span>
 
-      <textarea
-        id="textInput"
-        placeholder="Type a message..."
-        maxlength="5000"
-        rows="2"
-      ></textarea>
+              </div>
 
-      <button
-        type="submit"
-        class="btn btn-primary"
-        id="sendTextBtn"
-      >
-        Send ❤️
-      </button>
 
-    </form>
+              <!-- CALL BUTTONS -->
+              <div class="call-actions">
 
-  </div>
 
-</div>
-            
+                <button
+                  class="icon-btn"
+                  id="voiceCallBtn"
+                  title="Voice Call"
+                  aria-label="Voice Call"
+                  type="button"
+                >
+                  📞
+                </button>
+
+
+                <button
+                  class="icon-btn"
+                  id="videoCallBtn"
+                  title="Video Call"
+                  aria-label="Video Call"
+                  type="button"
+                >
+                  📹
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <!-- =========================
+                 CALL PANEL
+            ========================== -->
+
+            <div
+              id="callPanel"
+              class="call-panel"
+              hidden
+            >
+
+              <div class="call-header">
+
+                <strong id="callTitle">
+                  Call ❤️
+                </strong>
+
+                <button
+                  id="endCallBtn"
+                  class="icon-btn"
+                  type="button"
+                  title="End Call"
+                  aria-label="End Call"
+                >
+                  ❌
+                </button>
+
+              </div>
+
+
+              <div class="call-videos">
+
+
+                <!-- Remote video -->
+                <video
+                  id="remoteVideo"
+                  autoplay
+                  playsinline
+                ></video>
+
+
+                <!-- Local video -->
+                <video
+                  id="localVideo"
+                  autoplay
+                  muted
+                  playsinline
+                ></video>
+
+              </div>
+
+
+              <!-- Incoming call -->
+              <div
+                id="incomingCallBox"
+                hidden
+              >
+
+                <p id="incomingCallText">
+                  Incoming call ❤️
+                </p>
+
+
+                <button
+                  id="acceptCallBtn"
+                  class="btn btn-primary"
+                  type="button"
+                >
+                  Accept ❤️
+                </button>
+
+
+                <button
+                  id="rejectCallBtn"
+                  class="btn btn-secondary"
+                  type="button"
+                >
+                  Decline
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <!-- =========================
+                 MESSAGES
+            ========================== -->
+
+            <ul
+              id="messageList"
+              class="message-list"
+            >
+
+              <li
+                class="empty-state"
+                id="messageEmptyState"
+              >
+                No messages yet. Say hello ❤️
+              </li>
+
+            </ul>
+
+
+            <!-- =========================
+                 MESSAGE FORM
+            ========================== -->
+
+            <form
+              id="textForm"
+              class="text-form"
+            >
+
+              <textarea
+                id="textInput"
+                placeholder="Type a message..."
+                maxlength="5000"
+                rows="2"
+              ></textarea>
+
+
+              <button
+                type="submit"
+                class="btn btn-primary"
+                id="sendTextBtn"
+              >
+                Send ❤️
+              </button>
+
+            </form>
+
+          </div>
+
         </div>
+
       </div>
+
     </section>
+
   </template>
 
-  <!-- QR code generator (client-side, no data leaves the browser) -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <!-- =====================================================
+       EXTERNAL LIBRARIES
+  ====================================================== -->
+
+  <script
+    src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+  ></script>
+
   <script src="/socket.io/socket.io.js"></script>
 
+
+  <!-- =====================================================
+       APP SCRIPTS
+  ====================================================== -->
+
   <script src="js/utils.js"></script>
+
   <script src="js/toast.js"></script>
+
   <script src="js/theme.js"></script>
+
   <script src="js/socket.js"></script>
+
   <script src="js/api.js"></script>
+
   <script src="js/room.js"></script>
+
   <script src="js/router.js"></script>
+
   <script src="js/app.js"></script>
+
 </body>
+
 </html>
