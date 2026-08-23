@@ -1,7 +1,7 @@
 const roomService = require('./roomService');
 
 // =========================
-// MESSAGE RATE LIMITING
+// MESSAGE RATE LIMIT
 // =========================
 
 const MESSAGE_WINDOW_MS = 10 * 1000;
@@ -44,7 +44,7 @@ function isMessageRateLimited(socketId) {
 
 
 // =========================
-// SOCKET HANDLERS
+// REGISTER SOCKET HANDLERS
 // =========================
 
 function registerSocketHandlers(io) {
@@ -94,7 +94,6 @@ function registerSocketHandlers(io) {
           room.code;
 
 
-        // Add user
         roomService.addUser(
           room,
           socket.id,
@@ -104,13 +103,16 @@ function registerSocketHandlers(io) {
         );
 
 
-        // Save name
         socket.chatName =
           (name || '')
             .toString()
             .trim()
             .slice(0, 30) ||
-          'Guest';
+          (
+            role === 'creator'
+              ? 'You'
+              : 'Guest'
+          );
 
 
         const user =
@@ -122,21 +124,21 @@ function registerSocketHandlers(io) {
         }
 
 
-        // Notify other user
-        socket
-          .to(room.code)
-          .emit(
-            'room:user-joined',
-            {
-              connectedUsers:
-                room.users.size,
-              name:
-                socket.chatName
-            }
-          );
+        // Tell other participant
+        socket.to(room.code).emit(
+          'room:user-joined',
+          {
+            connectedUsers:
+              room.users.size,
+
+            name:
+              socket.chatName
+          }
+        );
 
 
         ack && ack({
+
           ok: true,
 
           room:
@@ -175,9 +177,7 @@ function registerSocketHandlers(io) {
         }
 
 
-        if (
-          !room.users.has(socket.id)
-        ) {
+        if (!room.users.has(socket.id)) {
 
           return ack && ack({
             ok: false,
@@ -217,9 +217,7 @@ function registerSocketHandlers(io) {
         }
 
 
-        if (
-          trimmed.length > 5000
-        ) {
+        if (trimmed.length > 5000) {
 
           return ack && ack({
             ok: false,
@@ -242,12 +240,10 @@ function registerSocketHandlers(io) {
           'Guest';
 
 
-        io
-          .to(room.code)
-          .emit(
-            'message:receive',
-            message
-          );
+        io.to(room.code).emit(
+          'message:receive',
+          message
+        );
 
 
         ack && ack({
@@ -277,16 +273,14 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket
-          .to(room.code)
-          .emit(
-            'typing:start',
-            {
-              name:
-                socket.chatName ||
-                'Someone'
-            }
-          );
+        socket.to(room.code).emit(
+          'typing:start',
+          {
+            name:
+              socket.chatName ||
+              'Someone'
+          }
+        );
       }
     );
 
@@ -310,11 +304,9 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket
-          .to(room.code)
-          .emit(
-            'typing:stop'
-          );
+        socket.to(room.code).emit(
+          'typing:stop'
+        );
       }
     );
 
@@ -338,21 +330,19 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket
-          .to(room.code)
-          .emit(
-            'call:voice',
-            {
-              from:
-                socket.id,
+        socket.to(room.code).emit(
+          'call:voice',
+          {
+            from:
+              socket.id,
 
-              name:
-                socket.chatName ||
-                'Someone',
+            name:
+              socket.chatName ||
+              'Someone',
 
-              signal
-            }
-          );
+            signal
+          }
+        );
       }
     );
 
@@ -376,27 +366,25 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket
-          .to(room.code)
-          .emit(
-            'call:video',
-            {
-              from:
-                socket.id,
+        socket.to(room.code).emit(
+          'call:video',
+          {
+            from:
+              socket.id,
 
-              name:
-                socket.chatName ||
-                'Someone',
+            name:
+              socket.chatName ||
+              'Someone',
 
-              signal
-            }
-          );
+            signal
+          }
+        );
       }
     );
 
 
     // =========================
-    // ICE CANDIDATE
+    // WEBRTC ICE CANDIDATE
     // =========================
 
     socket.on(
@@ -419,17 +407,17 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket
-          .to(room.code)
-          .emit(
-            'call:ice',
-            {
-              from:
-                socket.id,
+        // Forward ICE candidate
+        // to the other participant
+        socket.to(room.code).emit(
+          'call:ice',
+          {
+            from:
+              socket.id,
 
-              candidate
-            }
-          );
+            candidate
+          }
+        );
       }
     );
 
@@ -453,11 +441,9 @@ function registerSocketHandlers(io) {
         }
 
 
-        socket
-          .to(room.code)
-          .emit(
-            'call:end'
-          );
+        socket.to(room.code).emit(
+          'call:end'
+        );
       }
     );
 
@@ -536,35 +522,25 @@ function handleLeave(
   );
 
 
-  socket
-    .to(room.code)
-    .emit(
-      'room:user-left',
-      {
-        connectedUsers:
-          room.users.size
-      }
-    );
+  socket.to(room.code).emit(
+    'room:user-left',
+    {
+      connectedUsers:
+        room.users.size
+    }
+  );
 
 
-  socket
-    .to(room.code)
-    .emit(
-      'typing:stop'
-    );
+  socket.to(room.code).emit(
+    'typing:stop'
+  );
 
 
-  socket
-    .to(room.code)
-    .emit(
-      'call:end'
-    );
+  socket.to(room.code).emit(
+    'call:end'
+  );
 }
 
-
-// =========================
-// EXPORT
-// =========================
 
 module.exports = {
   registerSocketHandlers
