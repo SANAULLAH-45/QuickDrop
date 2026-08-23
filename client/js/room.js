@@ -1,6 +1,6 @@
 /* Controls the active JustUs chat room:
    chat, room code, QR code, countdown, connection status,
-   names, typing indicator, voice call and video call using WebRTC.
+   names, typing indicator, voice call and video call.
 */
 
 const RoomController = (() => {
@@ -20,10 +20,9 @@ const RoomController = (() => {
 
   let peerConnection = null;
   let localStream = null;
-  let currentCallType = null;
   let pendingOffer = null;
 
-  const RTC_CONFIG = {
+  const rtcConfig = {
     iceServers: [
       {
         urls: 'stun:stun.l.google.com:19302'
@@ -34,11 +33,15 @@ const RoomController = (() => {
     ]
   };
 
+  let callType = null;
+  let isCaller = false;
+
+
   const els = {};
 
 
   // =========================
-  // CACHE HTML ELEMENTS
+  // CACHE ELEMENTS
   // =========================
 
   function cacheEls() {
@@ -82,20 +85,26 @@ const RoomController = (() => {
     els.videoCallBtn =
       document.getElementById('videoCallBtn');
 
-    els.callOverlay =
-      document.getElementById('callOverlay');
-
-    els.localVideo =
-      document.getElementById('localVideo');
-
-    els.remoteVideo =
-      document.getElementById('remoteVideo');
+    els.callPanel =
+      document.getElementById('callPanel');
 
     els.callTitle =
       document.getElementById('callTitle');
 
     els.endCallBtn =
       document.getElementById('endCallBtn');
+
+    els.remoteVideo =
+      document.getElementById('remoteVideo');
+
+    els.localVideo =
+      document.getElementById('localVideo');
+
+    els.incomingCallBox =
+      document.getElementById('incomingCallBox');
+
+    els.incomingCallText =
+      document.getElementById('incomingCallText');
 
     els.acceptCallBtn =
       document.getElementById('acceptCallBtn');
@@ -130,7 +139,6 @@ const RoomController = (() => {
 
 
     // Copy code
-
     if (els.copyCodeBtn) {
       els.copyCodeBtn.addEventListener(
         'click',
@@ -139,8 +147,7 @@ const RoomController = (() => {
     }
 
 
-    // Send message
-
+    // Message form
     if (els.textForm) {
       els.textForm.addEventListener(
         'submit',
@@ -149,13 +156,7 @@ const RoomController = (() => {
     }
 
 
-    // Calls
-
-    setupCalls();
-
-
-    // Get room information
-
+    // Get room
     try {
 
       const roomState =
@@ -178,7 +179,6 @@ const RoomController = (() => {
 
 
     // Join Socket.IO room
-
     try {
 
       const role =
@@ -221,6 +221,8 @@ const RoomController = (() => {
     bindSocketEvents();
 
     setupTyping();
+
+    setupCalls();
   }
 
 
@@ -310,7 +312,8 @@ const RoomController = (() => {
         countdownInterval
       );
 
-      endCurrentCall(false);
+      endWebRTC(false);
+
       onRoomExpired();
 
       return;
@@ -343,9 +346,9 @@ const RoomController = (() => {
       'This chat has expired.'
     );
 
-    Router.navigate(
-      '/expired'
-    );
+    endWebRTC(false);
+
+    Router.navigate('/expired');
   }
 
 
@@ -416,7 +419,7 @@ const RoomController = (() => {
           els.typingStatus.textContent = '';
         }
 
-        endCurrentCall(false);
+        endWebRTC(false);
       }
     );
 
@@ -432,16 +435,19 @@ const RoomController = (() => {
     );
 
 
+    // =========================
+    // TYPING
+    // =========================
+
     socket.on(
       'typing:start',
       ({ name }) => {
 
-        if (!els.typingStatus) {
-          return;
-        }
+        if (els.typingStatus) {
 
-        els.typingStatus.textContent =
-          `${name || 'Your person'} is typing…`;
+          els.typingStatus.textContent =
+            `${name || 'Your person'} is typing…`;
+        }
       }
     );
 
@@ -457,13 +463,17 @@ const RoomController = (() => {
     );
 
 
-    // Incoming call
+    // =========================
+    // VOICE CALL
+    // =========================
 
     socket.on(
       'call:voice',
       async ({ name, signal }) => {
 
-        await handleIncomingCall(
+        if (!signal) return;
+
+        await receiveCall(
           'voice',
           name,
           signal
@@ -472,11 +482,17 @@ const RoomController = (() => {
     );
 
 
+    // =========================
+    // VIDEO CALL
+    // =========================
+
     socket.on(
       'call:video',
       async ({ name, signal }) => {
 
-        await handleIncomingCall(
+        if (!signal) return;
+
+        await receiveCall(
           'video',
           name,
           signal
@@ -485,7 +501,9 @@ const RoomController = (() => {
     );
 
 
-    // ICE candidate
+    // =========================
+    // ICE CANDIDATE
+    // =========================
 
     socket.on(
       'call:ice',
@@ -515,40 +533,15 @@ const RoomController = (() => {
     );
 
 
-    // Call answer
-
-    socket.on(
-      'call:answer',
-      async ({ signal }) => {
-
-        if (!peerConnection || !signal) {
-          return;
-        }
-
-        try {
-
-          await peerConnection.setRemoteDescription(
-            new RTCSessionDescription(signal)
-          );
-
-        } catch (err) {
-
-          console.error(
-            'Remote answer error:',
-            err
-          );
-        }
-      }
-    );
-
-
-    // Call ended
+    // =========================
+    // CALL END
+    // =========================
 
     socket.on(
       'call:end',
       () => {
 
-        endCurrentCall(false);
+        endWebRTC(false);
 
         Toast.info(
           'Call ended.'
@@ -557,23 +550,9 @@ const RoomController = (() => {
     );
 
 
-    // Room expired
-
-    socket.on(
-      'room:expired',
-      ({ code: expiredCode }) => {
-
-        if (
-          expiredCode === code
-        ) {
-          endCurrentCall(false);
-          onRoomExpired();
-        }
-      }
-    );
-
-
-    // Reconnect
+    // =========================
+    // RECONNECT
+    // =========================
 
     socket.io.on(
       'reconnect',
@@ -607,7 +586,6 @@ const RoomController = (() => {
 
         } catch (err) {
 
-          endCurrentCall(false);
           onRoomExpired();
         }
       }
@@ -673,7 +651,7 @@ const RoomController = (() => {
 
 
   // =========================
-  // LOAD OLD MESSAGES
+  // LOAD MESSAGES
   // =========================
 
   function hydrateMessages(messages) {
@@ -844,7 +822,7 @@ const RoomController = (() => {
 
 
   // =========================
-  // TYPING INDICATOR
+  // TYPING
   // =========================
 
   function setupTyping() {
@@ -862,11 +840,9 @@ const RoomController = (() => {
           code
         );
 
-
         clearTimeout(
           typingTimer
         );
-
 
         typingTimer =
           setTimeout(
@@ -899,9 +875,9 @@ const RoomController = (() => {
   }
 
 
-  // =========================
-  // CALL SETUP
-  // =========================
+  // =====================================================
+  // WEBRTC CALL SETUP
+  // =====================================================
 
   function setupCalls() {
 
@@ -909,9 +885,7 @@ const RoomController = (() => {
 
       els.voiceCallBtn.addEventListener(
         'click',
-        () => {
-          startCall('voice');
-        }
+        () => startCall('voice')
       );
     }
 
@@ -920,9 +894,7 @@ const RoomController = (() => {
 
       els.videoCallBtn.addEventListener(
         'click',
-        () => {
-          startCall('video');
-        }
+        () => startCall('video')
       );
     }
 
@@ -932,7 +904,10 @@ const RoomController = (() => {
       els.endCallBtn.addEventListener(
         'click',
         () => {
-          endCurrentCall(true);
+
+          SocketClient.endCall(code);
+
+          endWebRTC(true);
         }
       );
     }
@@ -942,9 +917,7 @@ const RoomController = (() => {
 
       els.acceptCallBtn.addEventListener(
         'click',
-        () => {
-          acceptIncomingCall();
-        }
+        acceptIncomingCall
       );
     }
 
@@ -953,9 +926,7 @@ const RoomController = (() => {
 
       els.rejectCallBtn.addEventListener(
         'click',
-        () => {
-          rejectIncomingCall();
-        }
+        rejectIncomingCall
       );
     }
   }
@@ -967,21 +938,24 @@ const RoomController = (() => {
 
   async function startCall(type) {
 
-    if (
-      peerConnection ||
-      currentCallType
-    ) {
+    if (peerConnection) {
+
       Toast.info(
         'A call is already active.'
       );
+
       return;
     }
 
+
+    callType = type;
+    isCaller = true;
+
+
     try {
 
-      currentCallType = type;
-
       await createPeerConnection();
+
 
       localStream =
         await navigator.mediaDevices.getUserMedia({
@@ -989,54 +963,45 @@ const RoomController = (() => {
           video: type === 'video'
         });
 
-      localStream
-        .getTracks()
-        .forEach((track) => {
+
+      attachLocalStream();
+
+
+      showCallPanel(
+        type === 'video'
+          ? 'Video Call ❤️'
+          : 'Voice Call ❤️'
+      );
+
+
+      localStream.getTracks().forEach(
+        (track) => {
 
           peerConnection.addTrack(
             track,
             localStream
           );
-        });
-
-
-      showCallUI(
-        type,
-        `Calling your person ${type === 'video' ? '📹' : '📞'}`
+        }
       );
 
 
       const offer =
         await peerConnection.createOffer();
 
+
       await peerConnection.setLocalDescription(
         offer
       );
 
 
-      SocketClient.sendVoiceCallSignal;
-
-
-      const signal = {
-        type: 'offer',
-        sdp: peerConnection.localDescription
-      };
-
-
-      if (type === 'voice') {
-
-        SocketClient.sendVoiceCallSignal(
-          code,
-          signal
-        );
-
-      } else {
-
-        SocketClient.sendVideoCallSignal(
-          code,
-          signal
-        );
-      }
+      SocketClient.sendVoiceCallSignal(
+        code,
+        {
+          type: 'offer',
+          callType: type,
+          sdp: offer
+        }
+      );
 
 
       Toast.info(
@@ -1046,45 +1011,43 @@ const RoomController = (() => {
     } catch (err) {
 
       console.error(
-        'Call start error:',
+        'CALL START ERROR:',
         err
       );
 
-      endCurrentCall(false);
+      endWebRTC(false);
 
       Toast.error(
-        'Could not access microphone/camera.'
+        'Could not start the call. Check microphone/camera permission.'
       );
     }
   }
 
 
   // =========================
-  // CREATE PEER CONNECTION
+  // CREATE PEER
   // =========================
 
   async function createPeerConnection() {
 
     peerConnection =
       new RTCPeerConnection(
-        RTC_CONFIG
+        rtcConfig
       );
 
 
     peerConnection.onicecandidate =
       (event) => {
 
-        if (!event.candidate) {
-          return;
-        }
+        if (
+          event.candidate
+        ) {
 
-        SocketClient.get().emit(
-          'call:ice',
-          {
+          SocketClient.sendIceCandidate(
             code,
-            candidate: event.candidate
-          }
-        );
+            event.candidate
+          );
+        }
       };
 
 
@@ -1106,9 +1069,7 @@ const RoomController = (() => {
     peerConnection.onconnectionstatechange =
       () => {
 
-        if (!peerConnection) {
-          return;
-        }
+        if (!peerConnection) return;
 
         const state =
           peerConnection.connectionState;
@@ -1117,63 +1078,69 @@ const RoomController = (() => {
           state === 'connected'
         ) {
 
-          if (els.callTitle) {
-            els.callTitle.textContent =
-              'Connected ❤️';
-          }
+          Toast.success(
+            'Call connected ❤️'
+          );
+        }
 
-        } else if (
+
+        if (
           state === 'failed' ||
-          state === 'disconnected'
+          state === 'closed'
         ) {
 
-          Toast.error(
-            'Call connection lost.'
-          );
-
-          endCurrentCall(false);
+          endWebRTC(false);
         }
       };
   }
 
 
   // =========================
-  // INCOMING CALL
+  // RECEIVE CALL
   // =========================
 
-  async function handleIncomingCall(
+  async function receiveCall(
     type,
     name,
     signal
   ) {
 
     if (
-      !signal ||
       signal.type !== 'offer'
     ) {
       return;
     }
 
 
-    if (
-      peerConnection ||
-      currentCallType
-    ) {
-
-      return;
-    }
-
-
     pendingOffer = {
       type,
-      name: name || 'Your person',
-      signal
+      name,
+      sdp: signal.sdp
     };
 
 
-    showIncomingCallUI(
-      type,
-      name || 'Your person'
+    if (els.incomingCallBox) {
+
+      els.incomingCallBox.hidden =
+        false;
+    }
+
+
+    if (els.incomingCallText) {
+
+      els.incomingCallText.textContent =
+        `${name || 'Your person'} is calling ${
+          type === 'video'
+            ? '📹'
+            : '📞'
+        }`;
+    }
+
+
+    showCallPanel(
+      type === 'video'
+        ? 'Incoming Video Call ❤️'
+        : 'Incoming Voice Call ❤️'
     );
   }
 
@@ -1189,15 +1156,22 @@ const RoomController = (() => {
     }
 
 
-    const call =
+    const offer =
       pendingOffer;
 
     pendingOffer = null;
 
+    isCaller = false;
+
+    callType =
+      offer.type;
+
+
     try {
 
-      currentCallType =
-        call.type;
+      if (els.incomingCallBox) {
+        els.incomingCallBox.hidden = true;
+      }
 
 
       await createPeerConnection();
@@ -1206,30 +1180,34 @@ const RoomController = (() => {
       localStream =
         await navigator.mediaDevices.getUserMedia({
           audio: true,
-          video: call.type === 'video'
+          video: offer.type === 'video'
         });
 
 
-      localStream
-        .getTracks()
-        .forEach((track) => {
+      attachLocalStream();
+
+
+      showCallPanel(
+        offer.type === 'video'
+          ? 'Video Call ❤️'
+          : 'Voice Call ❤️'
+      );
+
+
+      localStream.getTracks().forEach(
+        (track) => {
 
           peerConnection.addTrack(
             track,
             localStream
           );
-        });
-
-
-      showCallUI(
-        call.type,
-        `${call.name} ❤️`
+        }
       );
 
 
       await peerConnection.setRemoteDescription(
         new RTCSessionDescription(
-          call.signal.sdp
+          offer.sdp
         )
       );
 
@@ -1243,26 +1221,26 @@ const RoomController = (() => {
       );
 
 
-      SocketClient.get().emit(
-        'call:answer',
+      SocketClient.sendVoiceCallSignal(
+        code,
         {
-          code,
-          signal: peerConnection.localDescription
+          type: 'answer',
+          callType: offer.type,
+          sdp: answer
         }
       );
-
 
     } catch (err) {
 
       console.error(
-        'Accept call error:',
+        'ACCEPT CALL ERROR:',
         err
       );
 
-      endCurrentCall(false);
+      endWebRTC(false);
 
       Toast.error(
-        'Could not answer the call.'
+        'Could not accept the call.'
       );
     }
   }
@@ -1276,11 +1254,13 @@ const RoomController = (() => {
 
     pendingOffer = null;
 
-    hideCallUI();
+    if (els.incomingCallBox) {
+      els.incomingCallBox.hidden = true;
+    }
 
-    SocketClient.endCall(
-      code
-    );
+    SocketClient.endCall(code);
+
+    hideCallPanel();
 
     Toast.info(
       'Call declined.'
@@ -1289,140 +1269,105 @@ const RoomController = (() => {
 
 
   // =========================
-  // SHOW CALL UI
+  // HANDLE ANSWER
   // =========================
 
-  function showCallUI(
-    type,
-    title
-  ) {
+  async function handleAnswer(signal) {
 
-    if (!els.callOverlay) {
+    if (
+      !peerConnection ||
+      !signal.sdp
+    ) {
       return;
     }
 
 
-    els.callOverlay.hidden = false;
+    try {
 
+      await peerConnection.setRemoteDescription(
+        new RTCSessionDescription(
+          signal.sdp
+        )
+      );
+
+    } catch (err) {
+
+      console.error(
+        'ANSWER ERROR:',
+        err
+      );
+    }
+  }
+
+
+  // =========================
+  // ATTACH LOCAL VIDEO
+  // =========================
+
+  function attachLocalStream() {
+
+    if (
+      els.localVideo &&
+      localStream
+    ) {
+
+      els.localVideo.srcObject =
+        localStream;
+
+      els.localVideo.muted = true;
+    }
+  }
+
+
+  // =========================
+  // SHOW CALL PANEL
+  // =========================
+
+  function showCallPanel(title) {
+
+    if (els.callPanel) {
+
+      els.callPanel.hidden =
+        false;
+    }
 
     if (els.callTitle) {
+
       els.callTitle.textContent =
         title;
     }
+  }
 
 
-    if (els.acceptCallBtn) {
-      els.acceptCallBtn.hidden =
+  // =========================
+  // HIDE CALL PANEL
+  // =========================
+
+  function hideCallPanel() {
+
+    if (els.callPanel) {
+
+      els.callPanel.hidden =
         true;
     }
 
 
-    if (els.rejectCallBtn) {
-      els.rejectCallBtn.hidden =
+    if (els.incomingCallBox) {
+
+      els.incomingCallBox.hidden =
         true;
-    }
-
-
-    if (els.endCallBtn) {
-      els.endCallBtn.hidden =
-        false;
-    }
-
-
-    if (
-      els.localVideo
-    ) {
-
-      els.localVideo.hidden =
-        type !== 'video';
-
-      if (localStream) {
-
-        els.localVideo.srcObject =
-          localStream;
-      }
-    }
-
-
-    if (
-      els.remoteVideo
-    ) {
-
-      els.remoteVideo.hidden =
-        type !== 'video';
     }
   }
 
 
   // =========================
-  // INCOMING CALL UI
+  // END WEBRTC
   // =========================
 
-  function showIncomingCallUI(
-    type,
-    name
-  ) {
-
-    if (!els.callOverlay) {
-      return;
-    }
-
-
-    els.callOverlay.hidden =
-      false;
-
-
-    if (els.callTitle) {
-
-      els.callTitle.textContent =
-        `${name} is calling ${
-          type === 'video'
-            ? '📹'
-            : '📞'
-        }`;
-    }
-
-
-    if (els.acceptCallBtn) {
-      els.acceptCallBtn.hidden =
-        false;
-    }
-
-
-    if (els.rejectCallBtn) {
-      els.rejectCallBtn.hidden =
-        false;
-    }
-
-
-    if (els.endCallBtn) {
-      els.endCallBtn.hidden =
-        true;
-    }
-
-
-    if (els.localVideo) {
-      els.localVideo.hidden = true;
-    }
-
-
-    if (els.remoteVideo) {
-      els.remoteVideo.hidden =
-        type !== 'video';
-    }
-  }
-
-
-  // =========================
-  // END CALL
-  // =========================
-
-  function endCurrentCall(
-    notifyPeer = true
-  ) {
+  function endWebRTC(notifyRemote) {
 
     if (
-      notifyPeer &&
+      notifyRemote &&
       code
     ) {
 
@@ -1434,11 +1379,9 @@ const RoomController = (() => {
 
     if (localStream) {
 
-      localStream
-        .getTracks()
-        .forEach(
-          (track) => track.stop()
-        );
+      localStream.getTracks().forEach(
+        (track) => track.stop()
+      );
 
       localStream = null;
     }
@@ -1446,51 +1389,34 @@ const RoomController = (() => {
 
     if (peerConnection) {
 
+      peerConnection.ontrack = null;
+      peerConnection.onicecandidate = null;
       peerConnection.close();
 
       peerConnection = null;
     }
 
 
-    currentCallType = null;
-    pendingOffer = null;
-
-
     if (els.localVideo) {
-      els.localVideo.srcObject = null;
+
+      els.localVideo.srcObject =
+        null;
     }
 
 
     if (els.remoteVideo) {
-      els.remoteVideo.srcObject = null;
+
+      els.remoteVideo.srcObject =
+        null;
     }
 
 
-    hideCallUI();
-  }
+    pendingOffer = null;
+    callType = null;
+    isCaller = false;
 
 
-  // =========================
-  // HIDE CALL UI
-  // =========================
-
-  function hideCallUI() {
-
-    if (els.callOverlay) {
-      els.callOverlay.hidden = true;
-    }
-
-    if (els.acceptCallBtn) {
-      els.acceptCallBtn.hidden = true;
-    }
-
-    if (els.rejectCallBtn) {
-      els.rejectCallBtn.hidden = true;
-    }
-
-    if (els.endCallBtn) {
-      els.endCallBtn.hidden = true;
-    }
+    hideCallPanel();
   }
 
 
@@ -1509,14 +1435,13 @@ const RoomController = (() => {
     );
 
 
-    endCurrentCall(
-      false
-    );
-
-
     if (code) {
 
       SocketClient.stopTyping(
+        code
+      );
+
+      SocketClient.endCall(
         code
       );
 
@@ -1524,6 +1449,9 @@ const RoomController = (() => {
         code
       );
     }
+
+
+    endWebRTC(false);
 
 
     const socket =
@@ -1539,7 +1467,6 @@ const RoomController = (() => {
       'call:voice',
       'call:video',
       'call:ice',
-      'call:answer',
       'call:end',
       'room:expired'
     ].forEach(
@@ -1553,7 +1480,6 @@ const RoomController = (() => {
     mySocketId = null;
     myName = 'You';
     expiresAt = null;
-    pendingOffer = null;
   }
 
 
