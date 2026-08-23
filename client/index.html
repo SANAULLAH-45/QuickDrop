@@ -148,7 +148,6 @@
 
   </section>
 </template>
-  
   <template id="tpl-join">
   <section class="view view-join">
     <div class="center-card">
@@ -158,13 +157,30 @@
       <h2>Join your chat ❤️</h2>
 
       <p class="muted">
-        Enter the 6-character chat code shared with you.
+        Enter your name and the 6-character chat code.
       </p>
 
       <form id="joinForm" class="join-form" autocomplete="off">
 
+        <label for="joinName">
+          Your name
+        </label>
+
         <input
-          id="joinCodeInput"
+          id="joinName"
+          type="text"
+          maxlength="30"
+          placeholder="Enter your name"
+          autocomplete="off"
+          required
+        />
+
+        <label for="joinCodeInput">
+          Chat code
+        </label>
+
+        <input
+           id="joinCodeInput"
           class="code-input"
           type="text"
           inputmode="text"
@@ -172,6 +188,7 @@
           placeholder="ABC123"
           aria-label="Chat code"
           autocomplete="off"
+          required
         />
 
         <button
