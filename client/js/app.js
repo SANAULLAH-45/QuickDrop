@@ -130,14 +130,12 @@ const App = (() => {
         );
       }
 
-      if (type === 'file') {
-        sessionStorage.setItem(
-          `qd-pending-file-${code}`,
-          data.name
-        );
-      }
+     if (type === 'file') {
+  // Store the selected file temporarily in memory.
+  window.quickDropPendingFile = data;
+}
 
-      Router.navigate(`/room/${code}`);
+Router.navigate(`/room/${code}`);
 
     } catch (err) {
       showError(
