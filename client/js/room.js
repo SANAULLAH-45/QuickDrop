@@ -1,108 +1,204 @@
-/* Controls the Active Share Room screen: joining, text messaging, file
-   upload/download, QR code, countdown timer, and connection status. */
+/* Controls the active JustUs chat room:
+   chat, room code, QR code, countdown, connection status,
+   names, and real-time messages.
+*/
 
 const RoomController = (() => {
+
   let code = null;
   let mySocketId = null;
   let expiresAt = null;
   let countdownInterval = null;
+
   let knownMessageIds = new Set();
-  let knownFileIds = new Set();
-  let maxFileSizeMB = 50;
 
   const els = {};
 
+
+  // =========================
+  // CACHE HTML ELEMENTS
+  // =========================
   function cacheEls() {
-    els.roomCodeText = document.getElementById('roomCodeText');
-    els.copyCodeBtn = document.getElementById('copyCodeBtn');
-    els.connectionDot = document.getElementById('connectionDot');
-    els.connectionText = document.getElementById('connectionText');
-    els.timerText = document.getElementById('timerText');
-    els.qrCode = document.getElementById('qrCode');
-    els.textForm = document.getElementById('textForm');
-    els.textInput = document.getElementById('textInput');
-    els.messageList = document.getElementById('messageList');
-    els.messageEmptyState = document.getElementById('messageEmptyState');
-    els.dropzone = document.getElementById('dropzone');
-    els.fileInput = document.getElementById('fileInput');
-    els.fileList = document.getElementById('fileList');
-    els.fileEmptyState = document.getElementById('fileEmptyState');
-    els.maxFileSizeLabel = document.getElementById('maxFileSizeLabel');
+
+    els.roomCodeText =
+      document.getElementById('roomCodeText');
+
+    els.copyCodeBtn =
+      document.getElementById('copyCodeBtn');
+
+    els.connectionDot =
+      document.getElementById('connectionDot');
+
+    els.connectionText =
+      document.getElementById('connectionText');
+
+    els.timerText =
+      document.getElementById('timerText');
+
+    els.qrCode =
+      document.getElementById('qrCode');
+
+    els.textForm =
+      document.getElementById('textForm');
+
+    els.textInput =
+      document.getElementById('textInput');
+
+    els.messageList =
+      document.getElementById('messageList');
+
+    els.messageEmptyState =
+      document.getElementById('messageEmptyState');
+
+    els.typingStatus =
+      document.getElementById('typingStatus');
+
+    els.voiceCallBtn =
+      document.getElementById('voiceCallBtn');
+
+    els.videoCallBtn =
+      document.getElementById('videoCallBtn');
   }
 
-  async function init(roomCode) {
-    code = Utils.normalizeCode(roomCode);
-    cacheEls();
-    knownMessageIds = new Set();
-    knownFileIds = new Set();
 
-    els.roomCodeText.textContent = code;
+  // =========================
+  // INITIALIZE ROOM
+  // =========================
+  async function init(roomCode) {
+
+    code = Utils.normalizeCode(roomCode);
+
+    cacheEls();
+
+    knownMessageIds = new Set();
+
+    if (els.roomCodeText) {
+      els.roomCodeText.textContent = code;
+    }
+
     renderQrCode();
 
-    Api.getConfig().then((cfg) => {
-      maxFileSizeMB = cfg.maxFileSizeMB;
-      els.maxFileSizeLabel.textContent = `${cfg.maxFileSizeMB}MB`;
-    }).catch(() => { /* fall back to default silently */ });
 
-    els.copyCodeBtn.addEventListener('click', onCopyCode);
-    els.textForm.addEventListener('submit', onSendText);
-    els.dropzone.addEventListener('click', () => els.fileInput.click());
-    els.fileInput.addEventListener('change', onFilesSelected);
-    setupDragDrop();
+    // Copy code
+    if (els.copyCodeBtn) {
+      els.copyCodeBtn.addEventListener(
+        'click',
+        onCopyCode
+      );
+    }
 
+
+    // Text message
+    if (els.textForm) {
+      els.textForm.addEventListener(
+        'submit',
+        onSendText
+      );
+    }
+
+
+    // Voice call button
+    if (els.voiceCallBtn) {
+      els.voiceCallBtn.addEventListener(
+        'click',
+        () => {
+          Toast.info(
+            'Voice calling will be added next.'
+          );
+        }
+      );
+    }
+
+
+    // Video call button
+    if (els.videoCallBtn) {
+      els.videoCallBtn.addEventListener(
+        'click',
+        () => {
+          Toast.info(
+            'Video calling will be added next.'
+          );
+        }
+      );
+    }
+
+
+    // Get room information
     try {
-      const roomState = await Api.getRoom(code);
-      expiresAt = roomState.expiresAt;
-      hydrateMessages(roomState.messages);
-      hydrateFiles(roomState.files);
+
+      const roomState =
+        await Api.getRoom(code);
+
+      expiresAt =
+        roomState.expiresAt;
+
+      hydrateMessages(
+        roomState.messages
+      );
+
       startCountdown();
+
     } catch (err) {
+
       Router.navigate('/expired');
       return;
     }
 
+
+    // Join Socket.IO room
     try {
-      const joinResponse = await SocketClient.joinRoom(code, sessionStorage.getItem(`qd-creator-${code}`) ? 'creator' : 'joiner');
-      mySocketId = joinResponse.socketId;
-      updateConnectionStatus(joinResponse.room.connectedUsers);
+
+      const role =
+        sessionStorage.getItem(
+          `qd-creator-${code}`
+        )
+          ? 'creator'
+          : 'joiner';
+
+      const joinResponse =
+        await SocketClient.joinRoom(
+          code,
+          role
+        );
+
+      mySocketId =
+        joinResponse.socketId;
+
+      updateConnectionStatus(
+        joinResponse.room.connectedUsers
+      );
+
     } catch (err) {
-      Toast.error(err.message);
+
+      Toast.error(
+        err.message ||
+        'Could not connect to chat.'
+      );
+
       Router.navigate('/expired');
       return;
     }
 
-           bindSocketEvents();
 
-    // Send pending text
-    const pendingTextKey = `qd-pending-text-${code}`;
-    const pendingText = sessionStorage.getItem(pendingTextKey);
+    bindSocketEvents();
 
-    if (pendingText) {
-      try {
-        await SocketClient.sendMessage(code, pendingText);
-        sessionStorage.removeItem(pendingTextKey);
-      } catch (err) {
-        Toast.error(err.message || 'Message could not be sent.');
-      }
-    }
-
-    // Upload pending file
-    const pendingFile = window.quickDropPendingFile;
-
-    if (pendingFile) {
-      window.quickDropPendingFile = null;
-
-      try {
-        await uploadOneFile(pendingFile);
-      } catch (err) {
-        Toast.error(err.message || 'File could not be uploaded.');
-      }
-    }
+    setupTyping();
   }
+
+
+  // =========================
+  // QR CODE
+  // =========================
   function renderQrCode() {
+
+    if (!els.qrCode) return;
+
     els.qrCode.innerHTML = '';
-    const joinUrl = `${window.location.origin}/#/room/${code}`;
-    // eslint-disable-next-line no-undef
+
+    const joinUrl =
+      `${window.location.origin}/#/room/${code}`;
+
+    // QRCode library loaded from index.html
     new QRCode(els.qrCode, {
       text: joinUrl,
       width: 148,
@@ -113,303 +209,513 @@ const RoomController = (() => {
     });
   }
 
+
+  // =========================
+  // COPY CODE
+  // =========================
   function onCopyCode() {
-    Utils.copyToClipboard(code).then((ok) => {
-      if (ok) Toast.success('Room code copied');
-      else Toast.error('Could not copy code');
-    });
+
+    Utils.copyToClipboard(code)
+      .then((ok) => {
+
+        if (ok) {
+          Toast.success(
+            'Chat code copied'
+          );
+        } else {
+          Toast.error(
+            'Could not copy code'
+          );
+        }
+
+      });
   }
 
-  /* ---------------- Countdown timer ---------------- */
 
+  // =========================
+  // COUNTDOWN
+  // =========================
   function startCountdown() {
-    clearInterval(countdownInterval);
+
+    clearInterval(
+      countdownInterval
+    );
+
     updateCountdownDisplay();
-    countdownInterval = setInterval(updateCountdownDisplay, 1000);
+
+    countdownInterval =
+      setInterval(
+        updateCountdownDisplay,
+        1000
+      );
   }
+
 
   function updateCountdownDisplay() {
-    const remaining = expiresAt - Date.now();
+
+    if (!expiresAt || !els.timerText) {
+      return;
+    }
+
+    const remaining =
+      new Date(expiresAt).getTime()
+      - Date.now();
+
     if (remaining <= 0) {
-      clearInterval(countdownInterval);
+
+      clearInterval(
+        countdownInterval
+      );
+
       onRoomExpired();
       return;
     }
-    els.timerText.textContent = Utils.formatCountdown(remaining);
-    els.timerText.classList.toggle('warn', remaining < 5 * 60 * 1000 && remaining >= 60 * 1000);
-    els.timerText.classList.toggle('danger', remaining < 60 * 1000);
+
+    els.timerText.textContent =
+      Utils.formatCountdown(
+        remaining
+      );
+
+    els.timerText.classList.toggle(
+      'warn',
+      remaining <
+        5 * 60 * 1000 &&
+      remaining >=
+        60 * 1000
+    );
+
+    els.timerText.classList.toggle(
+      'danger',
+      remaining <
+        60 * 1000
+    );
   }
+
 
   function onRoomExpired() {
-    Toast.warn('This room has expired.');
-    Router.navigate('/expired');
+
+    Toast.warn(
+      'This chat has expired.'
+    );
+
+    Router.navigate(
+      '/expired'
+    );
   }
 
-  /* ---------------- Connection status ---------------- */
 
-  function updateConnectionStatus(connectedUsers) {
-    const otherPresent = connectedUsers >= 2;
-    els.connectionDot.classList.toggle('online', otherPresent);
-    els.connectionText.textContent = otherPresent
-      ? 'Connected — the other person is here'
-      : 'Waiting for the other person…';
+  // =========================
+  // CONNECTION STATUS
+  // =========================
+  function updateConnectionStatus(
+    connectedUsers
+  ) {
+
+    if (
+      !els.connectionDot ||
+      !els.connectionText
+    ) {
+      return;
+    }
+
+    const otherPresent =
+      connectedUsers >= 2;
+
+    els.connectionDot.classList.toggle(
+      'online',
+      otherPresent
+    );
+
+    els.connectionText.textContent =
+      otherPresent
+        ? 'Connected — your person is here ❤️'
+        : 'Waiting for your person… ❤️';
   }
 
-  /* ---------------- Socket events ---------------- */
 
+  // =========================
+  // SOCKET EVENTS
+  // =========================
   function bindSocketEvents() {
-    const socket = SocketClient.get();
 
-    socket.on('room:user-joined', ({ connectedUsers }) => {
-      updateConnectionStatus(connectedUsers);
-      Toast.info('Someone joined the room');
-    });
+    const socket =
+      SocketClient.get();
 
-    socket.on('room:user-left', ({ connectedUsers }) => {
-      updateConnectionStatus(connectedUsers);
-    });
+    socket.on(
+      'room:user-joined',
+      ({ connectedUsers }) => {
 
-    socket.on('message:receive', (message) => {
-      appendMessage(message);
-    });
+        updateConnectionStatus(
+          connectedUsers
+        );
 
-    socket.on('file:available', (file) => {
-      appendFile(file);
-      if (file.senderId !== mySocketId) {
-        Toast.info(`New file received: ${file.name}`);
+        Toast.info(
+          'Your person joined ❤️'
+        );
       }
-    });
+    );
 
-    socket.on('file:deleted', ({ fileId }) => {
-      removeFileFromDom(fileId);
-    });
 
-    socket.on('room:expired', ({ code: expiredCode }) => {
-      if (expiredCode === code) onRoomExpired();
-    });
+    socket.on(
+      'room:user-left',
+      ({ connectedUsers }) => {
 
-    socket.io.on('reconnect', async () => {
-      try {
-        const joinResponse = await SocketClient.joinRoom(code, 'joiner');
-        mySocketId = joinResponse.socketId;
-        updateConnectionStatus(joinResponse.room.connectedUsers);
-        Toast.success('Reconnected');
-      } catch (err) {
-        onRoomExpired();
+        updateConnectionStatus(
+          connectedUsers
+        );
       }
-    });
+    );
+
+
+    socket.on(
+      'message:receive',
+      (message) => {
+
+        appendMessage(
+          message
+        );
+      }
+    );
+
+
+    socket.on(
+      'room:expired',
+      ({ code: expiredCode }) => {
+
+        if (
+          expiredCode === code
+        ) {
+          onRoomExpired();
+        }
+      }
+    );
+
+
+    socket.io.on(
+      'reconnect',
+      async () => {
+
+        try {
+
+          const role =
+            sessionStorage.getItem(
+              `qd-creator-${code}`
+            )
+              ? 'creator'
+              : 'joiner';
+
+          const joinResponse =
+            await SocketClient.joinRoom(
+              code,
+              role
+            );
+
+          mySocketId =
+            joinResponse.socketId;
+
+          updateConnectionStatus(
+            joinResponse.room.connectedUsers
+          );
+
+          Toast.success(
+            'Reconnected ❤️'
+          );
+
+        } catch (err) {
+
+          onRoomExpired();
+        }
+      }
+    );
   }
 
-  /* ---------------- Text messaging ---------------- */
 
+  // =========================
+  // SEND MESSAGE
+  // =========================
   async function onSendText(e) {
-    e.preventDefault();
-    const text = els.textInput.value.trim();
-    if (!text) return;
 
-    const btn = document.getElementById('sendTextBtn');
-    btn.disabled = true;
+    e.preventDefault();
+
+    if (!els.textInput) {
+      return;
+    }
+
+    const text =
+      els.textInput.value.trim();
+
+    if (!text) {
+      return;
+    }
+
+    const btn =
+      document.getElementById(
+        'sendTextBtn'
+      );
+
+    if (btn) {
+      btn.disabled = true;
+    }
+
     try {
-      await SocketClient.sendMessage(code, text);
+
+      await SocketClient.sendMessage(
+        code,
+        text
+      );
+
       els.textInput.value = '';
+
     } catch (err) {
-      Toast.error(err.message);
+
+      Toast.error(
+        err.message ||
+        'Message could not be sent.'
+      );
+
     } finally {
-      btn.disabled = false;
+
+      if (btn) {
+        btn.disabled = false;
+      }
+
       els.textInput.focus();
     }
   }
 
-  function hydrateMessages(messages) {
+
+  // =========================
+  // LOAD OLD MESSAGES
+  // =========================
+  function hydrateMessages(
+    messages
+  ) {
+
+    if (!els.messageList) {
+      return;
+    }
+
     els.messageList.innerHTML = '';
-    if (!messages || messages.length === 0) {
-      els.messageList.appendChild(els.messageEmptyState);
-      return;
-    }
-    messages.forEach(appendMessage);
-  }
 
-  function appendMessage(message) {
-    if (knownMessageIds.has(message.id)) return;
-    knownMessageIds.add(message.id);
+    if (
+      !messages ||
+      messages.length === 0
+    ) {
 
-    if (els.messageEmptyState.parentElement) els.messageEmptyState.remove();
+      if (
+        els.messageEmptyState
+      ) {
 
-    const li = document.createElement('li');
-    li.className = 'message-item' + (message.senderId === mySocketId ? ' mine' : '');
-    li.innerHTML = `
-      <div class="message-text"></div>
-      <div class="message-meta">
-        <span class="message-time">${Utils.formatTime(message.timestamp)}</span>
-        <button class="copy-text-btn" type="button">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-          Copy
-        </button>
-      </div>
-    `;
-    li.querySelector('.message-text').textContent = message.text;
-    li.querySelector('.copy-text-btn').addEventListener('click', () => {
-      Utils.copyToClipboard(message.text).then((ok) => {
-        if (ok) Toast.success('Text copied');
-      });
-    });
-
-    els.messageList.appendChild(li);
-    els.messageList.scrollTop = els.messageList.scrollHeight;
-  }
-
-  /* ---------------- File sharing ---------------- */
-
-  function setupDragDrop() {
-    ['dragenter', 'dragover'].forEach((evt) => {
-      els.dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        els.dropzone.classList.add('dragover');
-      });
-    });
-    ['dragleave', 'drop'].forEach((evt) => {
-      els.dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        els.dropzone.classList.remove('dragover');
-      });
-    });
-    els.dropzone.addEventListener('drop', (e) => {
-      const files = Array.from(e.dataTransfer.files || []);
-      if (files.length) handleFiles(files);
-    });
-  }
-
-  function onFilesSelected(e) {
-    const files = Array.from(e.target.files || []);
-    if (files.length) handleFiles(files);
-    e.target.value = '';
-  }
-
-  function handleFiles(files) {
-    files.forEach(uploadOneFile);
-  }
-
-  async function uploadOneFile(file) {
-    const maxBytes = maxFileSizeMB * 1024 * 1024;
-    if (file.size > maxBytes) {
-      Toast.error(`"${file.name}" exceeds the ${maxFileSizeMB}MB limit.`);
-      return;
-    }
-
-    if (els.fileEmptyState.parentElement) els.fileEmptyState.remove();
-
-    const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const li = buildFileListItem({
-      id: tempId,
-      name: file.name,
-      size: file.size,
-      mimeType: file.type || 'application/octet-stream'
-    }, { uploading: true });
-    els.fileList.appendChild(li);
-
-    try {
-      const uploaded = await Api.uploadFile(code, file, mySocketId, (percent) => {
-        const fill = li.querySelector('.progress-fill');
-        if (fill) fill.style.width = `${percent}%`;
-      });
-      li.remove(); // the file:available socket event (echoed back to us too) will render the final row
-      knownFileIds.delete(tempId);
-      // In case the socket event already fired before upload() resolved:
-      if (!knownFileIds.has(uploaded.id)) {
-        appendFile({ ...uploaded, senderId: mySocketId });
+        els.messageList.appendChild(
+          els.messageEmptyState
+        );
       }
-    } catch (err) {
-      Toast.error(err.message || `Failed to upload "${file.name}".`);
-      li.remove();
-      if (els.fileList.children.length === 0) {
-        els.fileList.appendChild(els.fileEmptyState);
-      }
-    }
-  }
 
-  function hydrateFiles(files) {
-    els.fileList.innerHTML = '';
-    if (!files || files.length === 0) {
-      els.fileList.appendChild(els.fileEmptyState);
       return;
     }
-    files.forEach((f) => appendFile(f));
+
+    messages.forEach(
+      appendMessage
+    );
   }
 
-  function appendFile(file) {
-    if (knownFileIds.has(file.id)) return;
-    knownFileIds.add(file.id);
 
-    if (els.fileEmptyState.parentElement) els.fileEmptyState.remove();
+  // =========================
+  // DISPLAY MESSAGE
+  // =========================
+  function appendMessage(
+    message
+  ) {
 
-    const li = buildFileListItem(file, { uploading: false });
-    els.fileList.appendChild(li);
-  }
+    if (
+      !els.messageList ||
+      !message
+    ) {
+      return;
+    }
 
-  function buildFileListItem(file, { uploading }) {
-    const li = document.createElement('li');
-    li.className = 'file-item';
-    li.dataset.fileId = file.id;
+    if (
+      knownMessageIds.has(
+        message.id
+      )
+    ) {
+      return;
+    }
 
-    const icon = Utils.fileIconFor(file.mimeType || '', file.name);
+    knownMessageIds.add(
+      message.id
+    );
+
+
+    if (
+      els.messageEmptyState &&
+      els.messageEmptyState.parentElement
+    ) {
+
+      els.messageEmptyState.remove();
+    }
+
+
+    const li =
+      document.createElement(
+        'li'
+      );
+
+
+    const isMine =
+      message.senderId ===
+      mySocketId;
+
+
+    li.className =
+      'message-item' +
+      (isMine ? ' mine' : '');
+
+
     li.innerHTML = `
-      <div class="file-icon">${icon}</div>
-      <div class="file-info">
-        <div class="file-name"></div>
-        <div class="file-meta">${Utils.formatBytes(file.size)}</div>
-        ${uploading ? '<div class="progress-track"><div class="progress-fill"></div></div>' : ''}
+
+      <div class="message-bubble">
+
+        <div class="message-text"></div>
+
+        <div class="message-meta">
+
+          <span class="message-time">
+            ${Utils.formatTime(
+              message.timestamp
+            )}
+          </span>
+
+          <button
+            class="copy-text-btn"
+            type="button"
+          >
+            Copy
+          </button>
+
+        </div>
+
       </div>
-      <div class="file-actions"></div>
+
     `;
-    li.querySelector('.file-name').textContent = file.name;
 
-    const actions = li.querySelector('.file-actions');
-    if (!uploading) {
-      const downloadBtn = document.createElement('a');
-      downloadBtn.className = 'icon-btn';
-      downloadBtn.title = 'Download';
-      downloadBtn.href = Api.downloadFileUrl(code, file.id);
-      downloadBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>';
-      actions.appendChild(downloadBtn);
 
-      const deleteBtn = document.createElement('button');
-      deleteBtn.className = 'icon-btn';
-      deleteBtn.title = 'Remove';
-      deleteBtn.type = 'button';
-      deleteBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6h14z"/></svg>';
-      deleteBtn.addEventListener('click', () => onDeleteFile(file.id));
-      actions.appendChild(deleteBtn);
-    }
+    const textElement =
+      li.querySelector(
+        '.message-text'
+      );
 
-    return li;
+
+    textElement.textContent =
+      message.text;
+
+
+    const copyButton =
+      li.querySelector(
+        '.copy-text-btn'
+      );
+
+
+    copyButton.addEventListener(
+      'click',
+      () => {
+
+        Utils.copyToClipboard(
+          message.text
+        ).then((ok) => {
+
+          if (ok) {
+            Toast.success(
+              'Message copied'
+            );
+          }
+
+        });
+      }
+    );
+
+
+    els.messageList.appendChild(
+      li
+    );
+
+
+    els.messageList.scrollTop =
+      els.messageList.scrollHeight;
   }
 
-  async function onDeleteFile(fileId) {
-    try {
-      await Api.deleteFile(code, fileId);
-    } catch (err) {
-      Toast.error(err.message || 'Could not remove file.');
+
+  // =========================
+  // TYPING INDICATOR
+  // =========================
+  function setupTyping() {
+
+    if (!els.textInput) {
+      return;
     }
+
+    let typingTimer = null;
+
+    els.textInput.addEventListener(
+      'input',
+      () => {
+
+        clearTimeout(
+          typingTimer
+        );
+
+        // Typing event will be connected
+        // to Socket.IO when the server
+        // supports it.
+
+        typingTimer =
+          setTimeout(
+            () => {},
+            700
+          );
+      }
+    );
   }
 
-  function removeFileFromDom(fileId) {
-    knownFileIds.delete(fileId);
-    const li = els.fileList.querySelector(`[data-file-id="${fileId}"]`);
-    if (li) li.remove();
-    if (els.fileList.children.length === 0) {
-      els.fileList.appendChild(els.fileEmptyState);
-    }
-  }
 
+  // =========================
+  // TEARDOWN
+  // =========================
   function teardown() {
-    clearInterval(countdownInterval);
-    if (code) SocketClient.leaveRoom(code);
-    const socket = SocketClient.get();
-    ['room:user-joined', 'room:user-left', 'message:receive', 'file:available', 'file:deleted', 'room:expired'].forEach((evt) => {
-      socket.off(evt);
-    });
+
+    clearInterval(
+      countdownInterval
+    );
+
+    if (code) {
+      SocketClient.leaveRoom(
+        code
+      );
+    }
+
+    const socket =
+      SocketClient.get();
+
+    [
+      'room:user-joined',
+      'room:user-left',
+      'message:receive',
+      'room:expired'
+    ].forEach(
+      (evt) => {
+        socket.off(evt);
+      }
+    );
+
     code = null;
+    mySocketId = null;
+    expiresAt = null;
   }
 
-  return { init, teardown };
+
+  return {
+    init,
+    teardown
+  };
+
 })();
