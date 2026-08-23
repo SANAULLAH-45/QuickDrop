@@ -1,9 +1,15 @@
 /* Top-level application logic: wires up each screen's controls. */
 
 const App = (() => {
+
+  // =========================
+  // HOME
+  // =========================
   function initHome() {
     const form = document.getElementById('quickJoinForm');
     const input = document.getElementById('quickJoinInput');
+
+    if (!form || !input) return;
 
     input.addEventListener('input', () => {
       input.value = input.value.toUpperCase();
@@ -15,194 +21,203 @@ const App = (() => {
     });
   }
 
+
+  // =========================
+  // CREATE CHAT
+  // =========================
   async function initCreate() {
-  const textBtn = document.getElementById('textShareBtn');
-  const fileBtn = document.getElementById('fileShareBtn');
+    const form = document.getElementById('startChatForm');
+    const nameInput = document.getElementById('chatName');
+    const startBtn = document.getElementById('startChatBtn');
+    const errorBox = document.getElementById('shareError');
 
-  const textPanel = document.getElementById('textSharePanel');
-  const filePanel = document.getElementById('fileSharePanel');
+    if (!form || !nameInput || !startBtn) return;
 
-  const textInput = document.getElementById('shareTextInput');
-  const fileInput = document.getElementById('shareFileInput');
+    nameInput.focus();
 
-  const sendTextBtn = document.getElementById('sendTextBtn');
-  const sendFileBtn = document.getElementById('sendFileBtn');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
 
-  const selectedFileName = document.getElementById('selectedFileName');
-  const errorBox = document.getElementById('shareError');
+      const name = nameInput.value.trim();
 
-  if (!textBtn) return;
-
-  // Text mode
-  textBtn.addEventListener('click', () => {
-    textPanel.hidden = false;
-    filePanel.hidden = true;
-
-    textBtn.classList.add('btn-primary');
-    fileBtn.classList.remove('btn-primary');
-
-    textInput.focus();
-  });
-
-  // File mode
-  fileBtn.addEventListener('click', () => {
-    textPanel.hidden = true;
-    filePanel.hidden = false;
-
-    fileBtn.classList.add('btn-primary');
-    textBtn.classList.remove('btn-primary');
-  });
-
-  // File selected
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-
-    if (!file) {
-      selectedFileName.textContent = '';
-      sendFileBtn.disabled = true;
-      return;
-    }
-
-    selectedFileName.textContent =
-      `${file.name} (${formatFileSize(file.size)})`;
-
-    sendFileBtn.disabled = false;
-  });
-
-  // Send text
-  sendTextBtn.addEventListener('click', async () => {
-    const text = textInput.value.trim();
-
-    if (!text) {
-      showError('Please enter something to share.');
-      return;
-    }
-
-    await createShare('text', text);
-  });
-
-  // Send file
-  sendFileBtn.addEventListener('click', async () => {
-    const file = fileInput.files[0];
-
-    if (!file) {
-      showError('Please choose a file first.');
-      return;
-    }
-
-    await createShare('file', file);
-  });
-
-  function showError(message) {
-    errorBox.textContent = message;
-    errorBox.hidden = false;
-  }
-
-  function formatFileSize(bytes) {
-    if (bytes < 1024) return `${bytes} B`;
-
-    if (bytes < 1024 * 1024) {
-      return `${(bytes / 1024).toFixed(1)} KB`;
-    }
-
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  async function createShare(type, data) {
-    errorBox.hidden = true;
-
-    sendTextBtn.disabled = true;
-    sendFileBtn.disabled = true;
-
-    try {
-const transfer = await Api.createRoom();
-
-console.log('CREATE ROOM RESPONSE:', transfer);
-
-const code = transfer.code || transfer.roomCode || transfer.data?.code;
-
-if (!code) {
-  throw new Error('Server did not return a share code.');
-}
-
-      sessionStorage.setItem(`qd-creator-${code}`, '1');
-
-      if (type === 'text') {
-        sessionStorage.setItem(
-          `qd-pending-text-${code}`,
-          data
-        );
+      if (!name) {
+        if (errorBox) {
+          errorBox.textContent = 'Please enter your name.';
+          errorBox.hidden = false;
+        }
+        return;
       }
 
-     if (type === 'file') {
-  // Store the selected file temporarily in memory.
-  window.quickDropPendingFile = data;
-}
+      if (errorBox) {
+        errorBox.hidden = true;
+      }
 
-Router.navigate(`/room/${code}`);
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting Chat…';
 
-    } catch (err) {
-      showError(
-        err.message || 'Could not start the share.'
-      );
+      try {
 
-      sendTextBtn.disabled = false;
-      sendFileBtn.disabled = false;
-    }
+        const transfer = await Api.createRoom();
+
+        console.log('CREATE CHAT RESPONSE:', transfer);
+
+        const code =
+          transfer.code ||
+          transfer.roomCode ||
+          transfer.data?.code;
+
+        if (!code) {
+          throw new Error('Could not generate chat code.');
+        }
+
+        // Save creator status
+        sessionStorage.setItem(
+          `qd-creator-${code}`,
+          '1'
+        );
+
+        // Save creator name
+        sessionStorage.setItem(
+          `qd-chat-name-${code}`,
+          name
+        );
+
+        // Open chat
+        Router.navigate(`/room/${code}`);
+
+      } catch (err) {
+
+        console.error('CREATE CHAT ERROR:', err);
+
+        if (errorBox) {
+          errorBox.textContent =
+            err.message || 'Could not start the chat.';
+          errorBox.hidden = false;
+        }
+
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start Chat ❤️';
+      }
+    });
   }
-}
 
+
+  // =========================
+  // JOIN CHAT
+  // =========================
   function initJoin() {
     const form = document.getElementById('joinForm');
     const input = document.getElementById('joinCodeInput');
     const errorBox = document.getElementById('joinError');
     const submitBtn = document.getElementById('joinSubmitBtn');
 
+    if (!form || !input || !submitBtn) return;
+
     input.focus();
+
     input.addEventListener('input', () => {
       input.value = input.value.toUpperCase();
-      errorBox.hidden = true;
+
+      if (errorBox) {
+        errorBox.hidden = true;
+      }
     });
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      errorBox.hidden = true;
-      await attemptJoin(input.value, submitBtn, errorBox);
+
+      if (errorBox) {
+        errorBox.hidden = true;
+      }
+
+      await attemptJoin(
+        input.value,
+        submitBtn,
+        errorBox
+      );
     });
   }
 
-  async function attemptJoin(rawCode, buttonEl, errorBox) {
+
+  // =========================
+  // JOIN ROOM
+  // =========================
+  async function attemptJoin(
+    rawCode,
+    buttonEl,
+    errorBox
+  ) {
     const code = Utils.normalizeCode(rawCode);
+
     if (code.length < 4) {
-      const msg = 'Enter the full room code.';
-      if (errorBox) { errorBox.textContent = msg; errorBox.hidden = false; }
-      else Toast.error(msg);
+
+      const msg = 'Enter the full chat code.';
+
+      if (errorBox) {
+        errorBox.textContent = msg;
+        errorBox.hidden = false;
+      } else {
+        Toast.error(msg);
+      }
+
       return;
     }
 
     const originalText = buttonEl.textContent;
+
     buttonEl.disabled = true;
-    buttonEl.textContent = 'Checking…';
+    buttonEl.textContent = 'Joining…';
 
     try {
+
       await Api.getRoom(code);
+
       Router.navigate(`/room/${code}`);
+
     } catch (err) {
-      const msg = err.message || 'This room does not exist or has expired.';
-      if (errorBox) { errorBox.textContent = msg; errorBox.hidden = false; }
-      else Toast.error(msg);
+
+      const msg =
+        err.message ||
+        'This chat does not exist or has expired.';
+
+      if (errorBox) {
+        errorBox.textContent = msg;
+        errorBox.hidden = false;
+      } else {
+        Toast.error(msg);
+      }
+
     } finally {
+
       buttonEl.disabled = false;
       buttonEl.textContent = originalText;
+
     }
   }
 
+
+  // =========================
+  // ROOM
+  // =========================
   function initRoom(code) {
     RoomController.init(code);
+
     return () => RoomController.teardown();
   }
 
-  return { initHome, initCreate, initJoin, initRoom };
+
+  // =========================
+  // EXPORT
+  // =========================
+  return {
+    initHome,
+    initCreate,
+    initJoin,
+    initRoom
+  };
+
 })();
 
+
+// Start application
 Router.init();
